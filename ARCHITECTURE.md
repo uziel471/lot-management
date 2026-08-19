@@ -52,14 +52,20 @@ lote-management/
 │
 ├── openspec/
 │   ├── config.yaml
-│   ├── specs/                        # el contrato vigente del sistema
-│   │   ├── project/spec.md           # reglas transversales (dinero, anulación, IDs, auditoría)
-│   │   ├── authentication/spec.md
-│   │   ├── users/spec.md
-│   │   ├── catalogs/spec.md
-│   │   ├── vehicles/spec.md
-│   │   └── purchases/spec.md
-│   └── changes/                      # propuestas en curso (proposal → specs → design → tasks)
+│   ├── specs/                        # el contrato vigente: lo que el sistema hace HOY
+│   │                                 # (arranca vacío; se llena al archivar cada fase)
+│   └── changes/
+│       └── add-foundation-and-auth/  # Fase 0+1 en curso
+│           ├── proposal.md
+│           ├── design.md
+│           ├── tasks.md
+│           └── specs/                # deltas: project, authentication, users
+│
+├── docs/
+│   └── borrador-specs/               # specs redactados, aún no comprometidos a una fase
+│       ├── catalogs.md               #   → Fase 2
+│       ├── vehicles.md               #   → Fase 3
+│       └── purchases.md              #   → Fase 4
 │
 ├── scripts/
 │   ├── import-legacy-sheet.ts        # migración única desde el Spreadsheet (idempotente)
@@ -346,9 +352,11 @@ openspec/changes/   ← una carpeta por cambio en curso:
                       proposal.md → specs/<cap>/spec.md (delta) → design.md → tasks.md
 ```
 
-Se construye contra `tasks.md`; al terminar, el cambio se archiva y su delta se funde en `openspec/specs/`. `pnpm spec:validate` corre en cada commit.
+**Una fase = un change.** Se construye contra `tasks.md`; al terminar, el cambio se archiva y su delta se funde en `openspec/specs/`. Por eso `specs/` arranca vacío: hoy el sistema todavía no hace nada, y `specs/` describe lo construido, no lo prometido. `pnpm spec:validate` corre en cada commit.
 
-Esto sustituye el "criterio de salida + validación tuya" de cada fase del plan v2, con una ventaja: los escenarios de un spec **son** los casos de prueba de Vitest. Los seis escenarios de validación de la Fase 2 del plan v2 están escritos tal cual en `openspec/specs/purchases/spec.md`.
+Esto sustituye el "criterio de salida + validación tuya" de cada fase del plan v2, con una ventaja: los escenarios de un spec **son** los casos de prueba de Vitest. Los seis escenarios de validación de la Fase 2 del plan v2 están escritos tal cual en `docs/borrador-specs/purchases.md`, listos para convertirse en el delta de la Fase 4.
+
+Los specs de `docs/borrador-specs/` son redacción adelantada, no contrato: cada uno se mueve a `openspec/changes/<fase>/specs/` cuando su fase arranca, y de ahí a `openspec/specs/` cuando termina.
 
 ---
 
