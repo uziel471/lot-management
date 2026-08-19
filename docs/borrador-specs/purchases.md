@@ -32,7 +32,7 @@ El sistema SHALL permitir a un usuario autorizado registrar una compra indicando
 
 ### Requirement: Desglose del costo de adquisición
 
-El sistema SHALL registrar el costo de adquisición desglosado en componentes independientes, cada uno con su propio importe en la moneda de la compra. Un componente sin valor SHALL tratarse como cero. El total original SHALL ser la suma de los componentes, y el total en USD SHALL derivarse dividiendo el total original entre el tipo de cambio de la compra.
+El sistema SHALL registrar el costo de adquisición desglosado en ocho componentes independientes, cada uno con su propio importe en la moneda de la compra: precio del vehículo, comisiones de subasta, transporte de adquisición, trámites y documentación de título, impuesto de compra, aranceles de importación, honorarios del agente aduanal y otros costos de adquisición. Un componente sin valor SHALL tratarse como cero. El total original SHALL ser la suma de los ocho, y el total en USD SHALL derivarse dividiendo el total original entre el tipo de cambio de la compra.
 
 #### Scenario: Total en vivo durante la captura
 

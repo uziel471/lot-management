@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config"
 
 const alias = {
   "@": path.resolve(__dirname, "./src"),
+  // `server-only` es un paquete marcador que resuelve el bundler de
+  // Next, no `node_modules`. Sin este alias, cualquier test que
+  // importe un `queries.ts` falla al resolverlo.
+  "server-only": path.resolve(__dirname, "./tests/stubs/server-only.ts"),
 }
 
 export default defineConfig({

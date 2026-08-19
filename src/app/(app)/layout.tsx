@@ -2,6 +2,7 @@ import Link from "next/link"
 import { verifySession } from "@/lib/auth/dal"
 import { signOutAction } from "@/features/auth/actions"
 import { Button } from "@/components/ui/button"
+import { Toaster } from "@/components/ui/toast"
 
 /**
  * Shell de todo lo que exige sesión. Ejecuta `verifySession()` una
@@ -27,6 +28,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard" className="font-semibold">
             LOTE VEHICULOS
           </Link>
+          <Link href="/vehiculos" className="text-muted-foreground hover:text-foreground">
+            Vehículos
+          </Link>
+          <Link href="/catalogos" className="text-muted-foreground hover:text-foreground">
+            Catálogos
+          </Link>
           {isAdmin ? (
             <Link href="/usuarios" className="text-muted-foreground hover:text-foreground">
               Usuarios
@@ -48,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       <main className="flex-1 p-4">{children}</main>
+      <Toaster />
     </div>
   )
 }

@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LOTE VEHICULOS · Management
 
-## Getting Started
+Sistema de gestión de inventario, compras y costos de un lote de vehículos.
+Next.js 16 (App Router, Server Actions), MongoDB con Mongoose, Better Auth y Vitest.
 
-First, run the development server:
+- `ARCHITECTURE.md` — decisiones de arquitectura y convenciones.
+- `openspec/` — el contrato: `specs/` es lo que el sistema hace hoy; `changes/` lo que está en curso.
+- `AGENTS.md` — notas para agentes que trabajan en el repositorio.
+
+## Requisitos
+
+- Node 22
+- pnpm 8
+- MongoDB accesible (local o Atlas)
+
+## Puesta en marcha
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local     # completar MONGODB_URI, MONGODB_DB y BETTER_AUTH_SECRET
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+El secreto se genera con `openssl rand -base64 32`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Datos iniciales, en este orden
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Primer administrador.** Sin él no hay con quién entrar ni a nombre de quién firmar las cargas.
 
-## Learn More
+   ```bash
+   SEED_ADMIN_NAME="Nombre" SEED_ADMIN_EMAIL="admin@lote.com" \
+   SEED_ADMIN_PASSWORD="contraseña-segura" pnpm seed:admin
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Catálogos.** La carga pasa por las mismas reglas de dominio que la aplicación: normaliza el
+   nombre, verifica duplicados, respeta el `code` del archivo si viene y firma la autoría. Es
+   idempotente por nombre normalizado: correrla dos veces no duplica nada y reporta lo que ya existía.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   pnpm seed:catalogs --catalog=marcas      --file=./data/makes.json    --author=admin@lote.com
+   pnpm seed:catalogs --catalog=modelos     --file=./data/models.json   --author=admin@lote.com
+   pnpm seed:catalogs --catalog=estatus     --file=./data/statuses.json --author=admin@lote.com
+   pnpm seed:catalogs --catalog=proveedores --file=./data/vendors.json  --author=admin@lote.com
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   Acepta JSON (arreglo de objetos) o CSV con encabezado. Columnas por catálogo:
 
-## Deploy on Vercel
+   | Catálogo | Columnas |
+   |---|---|
+   | `marcas` | `name`; `code` opcional |
+   | `modelos` | `name`, `make` o `makeCode`; `code` opcional |
+   | `estatus` | `name`, `sortOrder`; `description` y `code` opcionales |
+   | `proveedores` | `name`; `phone`, `email`, `city`, `notes` y `code` opcionales |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   `--dry-run` informa sin escribir. Las marcas se cargan antes que los modelos.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Contadores.** Una inserción directa no pasa por `nextCode()`, así que deja los contadores en
+   cero mientras las colecciones ya tienen `MAKE-0011`. Este comando los deja en el código más alto
+   que exista en cada colección; nunca los baja.
+
+   ```bash
+   pnpm seed:counters
+   ```
+
+4. **Recién entonces, la interfaz.** Invertir los pasos 3 y 4 no pierde datos, pero la primera alta
+   hecha desde la aplicación falla por código duplicado hasta que los contadores se realineen.
+
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `pnpm dev` | Servidor de desarrollo |
+| `pnpm build` | Build de producción (incluye typecheck) |
+| `pnpm lint` | ESLint |
+| `pnpm test` | Vitest: unitarios y de integración (MongoDB en memoria) |
+| `pnpm spec:validate` | Valida los specs de OpenSpec en modo estricto |
+| `pnpm seed:admin` | Alta del primer administrador |
+| `pnpm seed:catalogs` | Carga de catálogos |
+| `pnpm seed:counters` | Realinea los contadores de códigos |

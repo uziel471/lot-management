@@ -9,7 +9,7 @@
 
 | # | Decisión | Valor |
 |---|---|---|
-| D1 | Rol del sistema en Sheets | **Reemplazo total.** MongoDB pasa a ser el source of truth. El Spreadsheet se importa una vez y se retira. |
+| D1 | Rol del sistema en Sheets | **Reemplazo total.** MongoDB pasa a ser el source of truth. Los datos existentes se cargan directamente a la base —sin un importador dentro de la aplicación— y el Spreadsheet se retira. |
 | D2 | Autenticación | **Better Auth** con adaptador oficial de MongoDB. |
 | D3 | Tenencia | **Un solo lote (una LLC).** Sin `lotId` en los documentos. |
 | D4 | Entregable | `ARCHITECTURE.md` + specs base en `openspec/specs/`. |
@@ -55,21 +55,22 @@ lote-management/
 │   ├── specs/                        # el contrato vigente: lo que el sistema hace HOY
 │   │                                 # (arranca vacío; se llena al archivar cada fase)
 │   └── changes/
-│       └── add-foundation-and-auth/  # Fase 0+1 en curso
+│       ├── add-foundation-and-auth/  # Fase 0+1
+│       ├── add-catalogs/             # Fase 2
+│       └── add-vehicles/             # Fase 3
 │           ├── proposal.md
 │           ├── design.md
 │           ├── tasks.md
-│           └── specs/                # deltas: project, authentication, users
+│           └── specs/                # deltas de la capacidad que agrega
 │
 ├── docs/
 │   └── borrador-specs/               # specs redactados, aún no comprometidos a una fase
-│       ├── catalogs.md               #   → Fase 2
-│       ├── vehicles.md               #   → Fase 3
 │       └── purchases.md              #   → Fase 4
 │
 ├── scripts/
-│   ├── import-legacy-sheet.ts        # migración única desde el Spreadsheet (idempotente)
-│   └── seed-admin.ts                 # alta del primer usuario admin
+│   ├── seed-admin.ts                 # alta del primer usuario admin
+│   ├── seed-catalogs.ts              # carga de catálogos por las reglas de dominio
+│   └── seed-counters.ts              # realinea cada contador con el código más alto
 │
 ├── src/
 │   ├── app/                          # SOLO ruteo. Archivos delgados.
@@ -161,7 +162,7 @@ En Next 16 las mutaciones van por **Server Actions**, no por `fetch` a rutas pro
 Next 16 renombró `middleware.ts` a `proxy.ts`. Su rol aquí es **exclusivamente el redirect optimista** de rutas protegidas leyendo la cookie de sesión — no la autorización real. La autorización real ocurre en `dal.ts`, junto a los datos.
 
 **g) `scripts/` agregado.**
-La migración desde el Spreadsheet es código que se ejecuta una vez pero debe ser revisable y repetible; no es un script de terminal improvisado.
+La carga inicial de datos se ejecuta una vez pero debe ser revisable y repetible; no es un comando improvisado en una consola de Mongo. Los scripts de carga pasan por las mismas reglas de dominio que la aplicación —normalización de nombres, autoría, emisión de códigos—, que es justo lo que una inserción directa se salta.
 
 **h) `tests/` se queda, con una regla de reparto.**
 Tests unitarios (`domain.ts`, `money.ts`) **colocados** junto al archivo, como `money.test.ts` — así se borran con el código que prueban. `tests/integration/` para lo que toca MongoDB de verdad. Vitest ya está en el proyecto.
@@ -254,23 +255,36 @@ Cada transacción es **monomoneda** (principio bimoneda del plan v2). `exchangeR
 ```
 users            (Better Auth: user, session, account, verification)
 counters         { _id: 'PUR', seq: 42 }
-makes            code MAKE-####,  name, isActive
-models           code MODEL-####, makeId → makes, name, isActive
-vehicleStatuses  code STATUS-####, name, isActive
-vendors          code VEND-####,  name, contacto..., isActive
-vehicles         code VEH-####,   makeId, modelId, year, vin, statusId, acquiredAt, ...
-purchases        code PUR-####,   vehicleId, vendorId, purchaseDate, currency,
-                                  exchangeRate, components[8], txType, void*, notes
-repairs          code REP-####    (Fase 5)
-expenses         code EXP-####    (Fase 6)
-payments         code PAY-####    (Fase 7)
-sales            code SAL-####    (Fase 8)
+makes            code MAKE-####,  name, nameKey, isActive
+models           code MODEL-####, makeId → makes, name, nameKey, isActive
+vehicleStatuses  code STATUS-####, name, nameKey, sortOrder, description, isActive
+vendors          code VEND-####,  name, nameKey, phone, email, city, notes, isActive
+vehicles         code VEH-####,   stockNumber, vin, makeId, modelId, year, trim,
+                                  bodyStyle, exteriorColor, interiorColor, mileage,
+                                  mileageUnit, transmission, fuelType, drivetrain,
+                                  titleStatus, titleNumber, titleInHand, statusId,
+                                  statusHistory[], dateReceived, dateListed,
+                                  lotLocation, askingPrice, notes, void*
+purchases        code PUR-####,   vehicleId, vendorId, purchaseDate, sourceType,
+                                  currency, exchangeRate, components[8], txType,
+                                  paymentMethod, referenceNumber, lotNumber,
+                                  void*, notes
+repairs          code REP-####    (Fase 6)
+expenses         code EXP-####    (Fase 7)
+payments         code PAY-####    (Fase 8)
+sales            code SAL-####    (Fase 9)
 auditLogs        append-only: actor, acción, colección, docId, antes, después, ts
 ```
 
+Todo documento de catálogo lleva además `createdBy`, `updatedBy`, `deactivatedAt` y `deactivatedBy`: la regla de trazabilidad de `project` no distingue entre catálogos y transacciones.
+
+Los ocho componentes del costo de adquisición de una compra son, en orden: `purchasePrice`, `auctionFees`, `acquisitionTransportCost`, `titleDocFees`, `purchaseTax`, `importDuties`, `customsBrokerFees` y `otherAcquisitionCosts`.
+
+Cinco listas del vehículo —`bodyStyle`, `transmission`, `fuelType`, `drivetrain` y `titleStatus`— son enumeraciones en código, no catálogos: son cerradas, no cambian y no necesitan código legible, retiro ni autoría. La regla que las hace seguras es que un valor ya usado nunca se renombra ni se elimina; solo se agregan valores nuevos.
+
 ### 4.4 Lo que NO se replica del Spreadsheet
 
-Las columnas calculadas (`vendor_name`, `vehicle_desc`, `total_*`, `days_in_inventory`) **no se guardan**. En Sheets existían porque una celda no puede hacer un JOIN. Aquí se calculan:
+Las columnas calculadas (`make_name`, `model_name`, `status_name`, `vendor_name`, `vehicle_desc`, `total_*`, `days_in_inventory`) **no se guardan**. En Sheets existían porque una celda no puede hacer un JOIN. Aquí se calculan:
 
 - `total_orig` / `total_usd` → funciones puras en `domain.ts`, evaluadas al leer.
 - `vendor_name` / `vehicle_desc` → `$lookup` en la agregación de la vista de lista.
@@ -283,10 +297,15 @@ Tampoco se replica `_LISTS` (era un truco de validación de datos de Sheets) ni 
 ### 4.5 Índices mínimos
 
 ```
-vehicles:  { code: 1 } unique · { vin: 1 } sparse unique · { statusId: 1, acquiredAt: -1 }
+vehicles:  { code: 1 } unique · { vin: 1 } sparse unique
+           { stockNumber: 1 } sparse unique · { statusId: 1, dateReceived: -1 }
 purchases: { code: 1 } unique · { vehicleId: 1, purchaseDate: -1 } · { vendorId: 1 }
-catálogos: { code: 1 } unique · { isActive: 1, name: 1 }
+catálogos: { code: 1 } unique · { nameKey: 1 } unique · { isActive: 1, name: 1 }
+models:    { makeId: 1, nameKey: 1 } unique · { makeId: 1, isActive: 1, name: 1 }
+estatus:   { sortOrder: 1, name: 1 }
 ```
+
+La unicidad de nombre de los catálogos va sobre `nameKey`, una clave derivada que recorta, colapsa espacios internos, quita acentos y pasa a minúsculas. Una collation de MongoDB resolvería mayúsculas y acentos pero no los espacios sobrantes, que son la mitad del problema real de captura, y dejaría la regla en la definición del índice, donde no se puede probar.
 
 ---
 
@@ -364,26 +383,35 @@ Los specs de `docs/borrador-specs/` son redacción adelantada, no contrato: cada
 
 Mismo orden que el plan v2, reordenado por lo que la migración hace necesario primero.
 
-| Fase | Alcance | Criterio de salida |
-|---|---|---|
-| **0** | Base: conexión Mongo, `counters`, `money.ts`, `ActionResult`, layout del shell | `pnpm test` verde sobre `money.ts` y `counters` |
-| **1** | Auth: Better Auth + roles + `dal.ts` + `proxy.ts` + `/login` | Un admin entra; un anónimo es redirigido; un capturista no ve `/usuarios` |
-| **2** | Catálogos: makes, models, vehicleStatuses, vendors — CRUD con desactivación | Alta y desactivación por UI; los `code` son consecutivos |
-| **3** | Vehículos: alta, listado, detalle, dropdown Make→Model dependiente | Se registra un vehículo completo desde la UI |
-| **4** | Compras: los 8 componentes de costo, bimoneda, anulación, corrección | Los 6 escenarios de la Fase 2 del plan v2, ejecutados como tests |
-| **5** | Migración: import del Spreadsheet + conciliación de totales | Los totales por vehículo coinciden con el Sheet al centavo |
-| **6** | Consulta: buscador, detalle, resumen de costo por vehículo | Ciclo alta → consulta → corrección sin tocar la base |
-| **7+** | `repairs` → `expenses` → `payments` → `sales` → dashboard | Uno por fase, cada uno con su spec |
+| Fase | Alcance | Criterio de salida | Estado |
+|---|---|---|---|
+| **0** | Base: conexión Mongo, `counters`, `money.ts`, `ActionResult`, layout del shell | `pnpm test` verde sobre `money.ts` y `counters` | Construida |
+| **1** | Auth: Better Auth + roles + `dal.ts` + `proxy.ts` + `/login` | Un admin entra; un anónimo es redirigido; un capturista no ve `/usuarios` | Construida |
+| **2** | Catálogos: makes, models, vehicleStatuses, vendors — alta, edición y retiro | Alta y desactivación por UI; los `code` son consecutivos; los 65 registros cargados y los contadores realineados | Propuesta |
+| **3** | Vehículos: alta, inventario, detalle, historial de estatus, Make→Model dependiente | Se registra un vehículo con cinco campos y se completa después; el historial refleja el recorrido | Propuesta |
+| **4** | Compras: los 8 componentes de costo, bimoneda, anulación, corrección, costo acumulado por vehículo | Los 6 escenarios de la Fase 2 del plan v2, ejecutados como tests | Borrador |
+| **5** | Consulta: buscador transversal, resumen de costo por vehículo, correcciones | Ciclo alta → consulta → corrección sin tocar la base | Pendiente |
+| **6+** | `repairs` → `expenses` → `payments` → `sales` → dashboard | Uno por fase, cada uno con su spec | Pendiente |
 
-**Decisiones de negocio pendientes** (heredadas del plan v2, siguen abiertas):
+La fase de migración que figuraba aquí desapareció: los datos existentes se cargan directamente a la base con los scripts de `scripts/`, no con un importador dentro de la aplicación.
 
-1. Frontera exacta `repairs` vs `expenses`, con tres ejemplos reales de cada lado — antes de la Fase 7.
+**Decisiones de negocio cerradas:**
+
+- Los 10 estatus de vehículo, con su orden explícito (10 a 90, con "On Hold" en 45) y su descripción. El orden ordena la presentación; **no** restringe las transiciones.
+- Los 8 componentes del costo de adquisición, listados en §4.3.
+- Las 5 listas cerradas del vehículo son enumeraciones en código, no catálogos.
+- El precio de lista se registra en USD, sin tipo de cambio congelado: no es una transacción.
+- El número de inventario del lote es opcional y único cuando se captura.
+- Los 6 IDs consumidos (`PUR-0001`…`PUR-0006`) no se recuperan: nunca existieron como compras reales y no hay importador que los traiga.
+
+**Decisiones de negocio pendientes:**
+
+1. Frontera exacta `repairs` vs `expenses`, con tres ejemplos reales de cada lado — antes de la Fase 6.
 2. ¿Los gastos generales se prorratean al costo por vehículo? — antes de `expenses`.
 3. `payments`: FK polimórfica vs. columnas dedicadas — recomendación: dedicadas.
 4. Manejo de venta devuelta (*return*) — antes de `sales`.
 5. ¿El negocio usa *floor plan* (financiamiento de inventario)? Si sí, `financing` entra entre `payments` y `sales`.
-6. ¿Qué se hace con los 6 IDs consumidos (`PUR-0001`…`PUR-0006`) en el Sheet? Recomendación: **no** migrarlos y arrancar el contador en 0 — nunca existieron como compras reales.
-7. **Los nombres exactos de los 8 componentes de costo de adquisición** (columnas H:O de `PURCHASES`). El spec de compras está escrito sin fijarlos para no inventarlos; necesito la lista real antes de la Fase 4.
+6. Duración de la sesión y si debe renovarse con la actividad — al desplegar.
 
 ---
 
@@ -396,7 +424,9 @@ Mismo orden que el plan v2, reordenado por lo que la migración hace necesario p
 | Doble submit por doble clic | `useActionState` + botón deshabilitado en `pending`, e índice único sobre `code` como red final |
 | Una consulta se filtra a un Client Component | `import 'server-only'` en todo `queries.ts`; el build falla si alguien lo importa desde el cliente |
 | El proxy se confunde con autorización | `requireRole()` en cada action y query; el proxy solo redirige |
-| Migración del Sheet incompleta o duplicada | Import idempotente por `code` + reporte de conciliación de totales antes de retirar el Sheet |
+| La carga directa a la base se salta las reglas de la aplicación | Un `insertMany` no calcula `nameKey`, no firma autoría y deja los contadores en cero, con lo que la primera alta desde la interfaz choca contra el índice único. Se mitiga con `seed-catalogs.ts`, que pasa por las mismas funciones de dominio, y `seed-counters.ts`, que realinea cada contador con el código más alto realmente presente |
+| Duplicados semánticos en catálogos ("Toyota" / "toyota" / "Toyota ") | Clave `nameKey` normalizada con índice único, y un mensaje de rechazo que nombra la entrada existente que colisiona |
+| Un valor de enumeración se renombra y deja huérfanos los vehículos capturados | Regla explícita de solo agregar, nunca renombrar ni eliminar, más un test que verifica que todo valor almacenado pertenece a la lista vigente |
 | Better Auth y Mongoose abren conexiones separadas | Pasar `mongoose.connection.getClient()` al `mongodbAdapter` |
 | Se rompe la frontera de costos y un gasto se registra dos veces | Regla en `project/spec.md` + validación de dominio que rechaza el mismo comprobante en dos colecciones |
 

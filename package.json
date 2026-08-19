@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "seed:catalogs": "tsx scripts/seed-catalogs.ts",
+    "seed:counters": "tsx scripts/seed-counters.ts",
     "spec:validate": "npx --yes @fission-ai/openspec@1.8.0 validate --all --strict --no-interactive"
   },
   "dependencies": {

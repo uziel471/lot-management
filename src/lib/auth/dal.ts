@@ -52,9 +52,9 @@ export const verifySession = cache(async () => {
  * una Server Action debe devolver un `ActionResult` de error, nunca
  * navegar fuera del formulario que la invocó.
  */
-export async function requireRole(allowed: Role | Role[]) {
+export async function requireRole(allowed: Role | readonly Role[]) {
   const { user, session } = await verifySession()
-  const allowedRoles = Array.isArray(allowed) ? allowed : [allowed]
+  const allowedRoles: readonly Role[] = Array.isArray(allowed) ? allowed : [allowed as Role]
 
   if (!allowedRoles.includes(user.role)) {
     return null
