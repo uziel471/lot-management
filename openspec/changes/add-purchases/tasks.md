@@ -98,5 +98,5 @@
 - [ ] 8.13 Tests de autorización: `lectura` rechazado en toda escritura; escritura sin sesión rechazada; `capturista` registra pero no anula
 - [ ] 8.14 Test de integridad de enumeraciones: todos los valores de `sourceType`, `paymentMethod` y `txType` almacenados pertenecen a las listas vigentes
 - [ ] 8.15 Correr `pnpm lint`, `pnpm test` y `pnpm build` en limpio
-- [ ] 8.16 Correr `pnpm spec:validate` y confirmar que el cambio valida en modo estricto
+- [x] 8.16 Correr `pnpm spec:validate` y confirmar que el cambio valida en modo estricto
 - [ ] 8.17 Recorrido manual de aceptación, que reproduce los seis escenarios de validación de la Fase 2 del plan v2: registrar una compra en USD y comprobar que es `PUR-0001`; registrar una en MXN con tipo de cambio y verificar la conversión; intentar guardar sin un campo obligatorio y comprobar que no se consume código; intentar un negativo con tipo `Initial` y comprobar el rechazo; registrar un `Adjustment` negativo y comprobar que se acepta; verificar que los códigos son consecutivos sin saltos. Después: anular una compra como `admin`, capturar su `Correction`, comprobar el costo acumulado del vehículo en su ficha, intentar anular el vehículo con compras vigentes, y repetir con sesión de capturista para comprobar que no puede anular
