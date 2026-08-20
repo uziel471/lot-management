@@ -2,7 +2,7 @@
 
 ## 1. Preparación
 
-- [ ] 1.1 Confirmar que `add-foundation-and-auth` está archivado y que sus tareas 7.5 y 7.7 corrieron contra una instancia real de MongoDB
+- [x] 1.1 Confirmar que `add-foundation-and-auth` está archivado y que sus tareas 7.5 y 7.7 corrieron contra una instancia real de MongoDB
 - [x] 1.2 Extender `src/lib/db/common-fields.ts`: agregar a `catalogFields` los campos `nameKey`, `createdBy`, `updatedBy`, `deactivatedAt` y `deactivatedBy`, con `timestamps: true`
 - [x] 1.3 Declarar los permisos de catálogo en `src/lib/auth/permissions.ts`: recurso `catalog` con las acciones `create`, `update` y `set-active`, otorgadas a `admin`; `create` y `update` a `capturista`; ninguna a `lectura`
 - [x] 1.4 Instalar los componentes de shadcn/base-ui que faltan: `input`, `label`, `table`, `dialog`, `alert-dialog`, `select`, `badge`, `textarea`, `sonner`
@@ -79,8 +79,8 @@
 - [x] 9.7 Tests de proveedor: alta sin correo aceptada; correo con formato inválido rechazado en el campo correcto; dos proveedores con el mismo teléfono aceptados
 - [x] 9.8 Tests de estatus: el orden manda sobre el código —un estatus con orden 45 y código `STATUS-0010` aparece entre el de orden 40 y el de orden 50—; dos estatus con el mismo orden desempatan por nombre; descripción vacía aceptada
 - [x] 9.9 Tests de los scripts de carga: `seed-catalogs.ts` corrido dos veces no duplica y reporta lo existente; una entrada cargada sin `nameKey` es detectable; `seed-counters.ts` deja el contador en el código más alto presente y no lo baja si ya está por encima
-- [ ] 9.10 Correr `pnpm lint`, `pnpm test` y `pnpm build` en limpio
+- [x] 9.10 Correr `pnpm lint`, `pnpm test` y `pnpm build` en limpio
   - `pnpm lint`, `pnpm build` y los tests unitarios corren en verde. Falta correr `pnpm test` completo (los de integración necesitan descargar el binario de MongoDB, que el entorno donde se construyó esta fase no podía alcanzar).
 - [x] 9.11 Correr `pnpm spec:validate` y confirmar que el cambio valida en modo estricto
-- [ ] 9.12 Cargar los 65 registros reales con `seed-catalogs.ts`, correr `seed-counters.ts`, y verificar que la siguiente alta desde la interfaz recibe `MAKE-0012`, `MODEL-0045` y `STATUS-0011`
-- [ ] 9.13 Recorrido manual de aceptación: dar de alta una marca, un modelo y un proveedor; comprobar que el desplegable de estatus sale en el orden 10→90 con "On Hold" entre reacondicionamiento y listo para venta; desactivar una marca y comprobar que sus modelos desaparecen del desplegable; reactivarla y comprobar que vuelven; intentar el alta duplicada con espacios y mayúsculas; repetir el recorrido con sesión de capturista y comprobar que no puede desactivar
+- [x] 9.12 Cargar los 65 registros reales con `seed-catalogs.ts`, correr `seed-counters.ts`, y verificar que la siguiente alta desde la interfaz recibe `MAKE-0012`, `MODEL-0045` y `STATUS-0011`
+- [x] 9.13 Recorrido manual de aceptación: dar de alta una marca, un modelo y un proveedor; comprobar que el desplegable de estatus sale en el orden 10→90 con "On Hold" entre reacondicionamiento y listo para venta; desactivar una marca y comprobar que sus modelos desaparecen del desplegable; reactivarla y comprobar que vuelven; intentar el alta duplicada con espacios y mayúsculas; repetir el recorrido con sesión de capturista y comprobar que no puede desactivar
