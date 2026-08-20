@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { MoneyInput } from "@/components/shared/money-input"
 import { SubmitButton } from "@/components/shared/submit-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -97,9 +98,8 @@ export function PurchaseForm({
     if (nextCurrency === "USD") setExchangeRate("1")
   }
 
-  function handleComponentChange(key: CostComponentKey, raw: string) {
-    const amount = raw.trim() === "" ? 0 : Math.round(Number(raw) * 100)
-    setComponents((prev) => ({ ...prev, [key]: Number.isFinite(amount) ? amount : 0 }))
+  function handleComponentChange(key: CostComponentKey, cents: number) {
+    setComponents((prev) => ({ ...prev, [key]: cents }))
   }
 
   return (
@@ -219,12 +219,9 @@ export function PurchaseForm({
             label={component.label}
             error={fieldErrors[component.key]}
           >
-            <Input
+            <MoneyInput
               name={component.key}
-              type="number"
-              step="0.01"
-              defaultValue={0}
-              onChange={(event) => handleComponentChange(component.key, event.target.value)}
+              onChangeCents={(cents) => handleComponentChange(component.key, cents)}
             />
           </Field>
         ))}

@@ -70,7 +70,7 @@
 - [x] 7.4 Generar el `submissionToken` al montar el formulario y renovarlo tras un guardado exitoso
 - [x] 7.5 Fijar el tipo de cambio en `1` y bloquearlo al seleccionar `USD`, y restaurarlo editable al seleccionar `MXN`
 - [x] 7.6 Mostrar el total original y su equivalente en USD en vivo, calculados con las mismas funciones de `lib/money.ts` que usa el servidor
-- [ ] 7.7 Implementar el campo de importe monetario reutilizable y evaluar si sube a `components/shared` — reparaciones, gastos, pagos y ventas lo necesitarán idéntico
+- [x] 7.7 Implementar el campo de importe monetario reutilizable y evaluar si sube a `components/shared` — reparaciones, gastos, pagos y ventas lo necesitarán idéntico
 - [x] 7.8 Poblar los desplegables de vehículo y proveedor con `listVehicleOptions` y `listActiveOptions("vendors")`, sin modificar ninguna de las dos
 - [x] 7.9 Mostrar la frontera de costos como texto de ayuda encima de los ocho componentes
 - [x] 7.10 Mostrar el desplegable de compra a corregir solo cuando el tipo es `Correction`
