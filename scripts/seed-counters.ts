@@ -21,9 +21,11 @@ import { dbConnect } from "../src/lib/db/client"
 import { Counter } from "../src/lib/db/counters"
 import { listCatalogs } from "../src/features/catalogs/registry"
 import { Vehicle } from "../src/lib/db/models/vehicle"
+import { Purchase } from "../src/lib/db/models/purchase"
 
-/** Prefijo del contador de vehículos, fuera del registro de catálogos. */
+/** Prefijos de contador fuera del registro de catálogos. */
 const VEHICLE_CODE_PREFIX = "VEH"
+const PURCHASE_CODE_PREFIX = "PUR"
 
 /** Extrae el número de un código `PREFIJO-NNNN`. Devuelve 0 si no encaja. */
 function sequenceOf(code: string, prefix: string): number {
@@ -40,9 +42,26 @@ export type CounterRealignment = {
   documents: number
 }
 
+/** Realinea un único contador con el código más alto de una colección dada. */
+async function realignOne(
+  prefix: string,
+  documents: { code: string }[],
+): Promise<CounterRealignment> {
+  const highest = documents.reduce((max, document) => Math.max(max, sequenceOf(document.code, prefix)), 0)
+
+  const counter = await Counter.findById(prefix).lean()
+  const current = counter?.seq ?? 0
+
+  if (highest > current) {
+    await Counter.updateOne({ _id: prefix }, { $set: { seq: highest } }, { upsert: true })
+  }
+
+  return { prefix, previous: current, highest, updated: highest > current, documents: documents.length }
+}
+
 /**
- * Deja cada contador de catálogo en el código más alto realmente
- * presente, sin bajarlo nunca. Se exporta para poder probarlo.
+ * Deja cada contador en el código más alto realmente presente, sin
+ * bajarlo nunca. Se exporta para poder probarlo.
  */
 export async function realignCounters(): Promise<CounterRealignment[]> {
   await dbConnect()
@@ -53,60 +72,20 @@ export async function realignCounters(): Promise<CounterRealignment[]> {
       .find({})
       .select({ code: 1 })
       .lean()) as unknown as { code: string }[]
-
-    const highest = documents.reduce(
-      (max, document) => Math.max(max, sequenceOf(document.code, definition.codePrefix)),
-      0,
-    )
-
-    const counter = await Counter.findById(definition.codePrefix).lean()
-    const current = counter?.seq ?? 0
-
-    if (highest > current) {
-      await Counter.updateOne(
-        { _id: definition.codePrefix },
-        { $set: { seq: highest } },
-        { upsert: true },
-      )
-    }
-
-    report.push({
-      prefix: definition.codePrefix,
-      previous: current,
-      highest,
-      updated: highest > current,
-      documents: documents.length,
-    })
+    report.push(await realignOne(definition.codePrefix, documents))
   }
 
-  // `vehicles` no vive en el registro de catálogos (no es un
-  // catálogo), así que se realinea aparte con la misma lógica.
+  // `vehicles` y `purchases` no viven en el registro de catálogos (no
+  // son catálogos), así que se realinean aparte con la misma lógica.
   const vehicleDocuments = (await Vehicle.find({})
     .select({ code: 1 })
     .lean()) as unknown as { code: string }[]
+  report.push(await realignOne(VEHICLE_CODE_PREFIX, vehicleDocuments))
 
-  const highestVehicle = vehicleDocuments.reduce(
-    (max, document) => Math.max(max, sequenceOf(document.code, VEHICLE_CODE_PREFIX)),
-    0,
-  )
-  const vehicleCounter = await Counter.findById(VEHICLE_CODE_PREFIX).lean()
-  const currentVehicle = vehicleCounter?.seq ?? 0
-
-  if (highestVehicle > currentVehicle) {
-    await Counter.updateOne(
-      { _id: VEHICLE_CODE_PREFIX },
-      { $set: { seq: highestVehicle } },
-      { upsert: true },
-    )
-  }
-
-  report.push({
-    prefix: VEHICLE_CODE_PREFIX,
-    previous: currentVehicle,
-    highest: highestVehicle,
-    updated: highestVehicle > currentVehicle,
-    documents: vehicleDocuments.length,
-  })
+  const purchaseDocuments = (await Purchase.find({})
+    .select({ code: 1 })
+    .lean()) as unknown as { code: string }[]
+  report.push(await realignOne(PURCHASE_CODE_PREFIX, purchaseDocuments))
 
   return report
 }

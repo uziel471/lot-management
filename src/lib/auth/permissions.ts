@@ -28,6 +28,13 @@ const statement = {
    * reservada a `admin`. No hay acción de borrado.
    */
   vehicle: ["create", "update", "void"],
+  /**
+   * Compras: alta para `capturista` y `admin`; anulación reservada a
+   * `admin`. No hay acción `update`: la compra es inmutable una vez
+   * registrada (ver design.md de `add-purchases`, "La compra es
+   * inmutable"), así que no existe una operación que ocultar.
+   */
+  purchase: ["create", "void"],
 } as const
 
 export const ac = createAccessControl(statement)
@@ -38,18 +45,21 @@ export const roles = {
     session: ["list", "revoke", "delete"],
     catalog: ["create", "update", "set-active"],
     vehicle: ["create", "update", "void"],
+    purchase: ["create", "void"],
   }),
   capturista: ac.newRole({
     user: [],
     session: [],
     catalog: ["create", "update"],
     vehicle: ["create", "update"],
+    purchase: ["create"],
   }),
   lectura: ac.newRole({
     user: [],
     session: [],
     catalog: [],
     vehicle: [],
+    purchase: [],
   }),
 } satisfies Record<Role, ReturnType<typeof ac.newRole>>
 
@@ -71,3 +81,12 @@ export const CATALOG_SET_ACTIVE_ROLES: readonly Role[] = ["admin"]
 export const VEHICLE_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
 export const VEHICLE_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
 export const VEHICLE_VOID_ROLES: readonly Role[] = ["admin"]
+
+/**
+ * Los roles de compra: `lectura` solo consulta, `capturista` y
+ * `admin` registran, y anular queda reservado a `admin`. No hay lista
+ * de edición: no existe la operación.
+ */
+export const PURCHASE_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
+export const PURCHASE_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
+export const PURCHASE_VOID_ROLES: readonly Role[] = ["admin"]

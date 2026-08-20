@@ -1,3 +1,5 @@
+import { stripAccentsAndCollapseSpaces } from "@/lib/text"
+
 /**
  * Reglas puras de los catálogos: sin I/O, sin Mongoose, sin sesión.
  * Todo lo que se pueda decidir sin tocar la base vive aquí, y aquí es
@@ -12,9 +14,11 @@ export const NAME_MAX_LENGTH = 80
  * Deriva la clave de unicidad de un nombre de catálogo.
  *
  * Recorta los extremos, colapsa los espacios internos consecutivos en
- * uno solo, normaliza a NFD, quita los diacríticos y pasa a
- * minúsculas. Es lo que hace que "Toyota", "toyota", "  Toyota " y
- * "Land   Rover" no puedan coexistir con "Land Rover".
+ * uno solo, normaliza a NFD, quita los diacríticos (delegado en
+ * `stripAccentsAndCollapseSpaces` de `lib/text.ts`, compartido con
+ * `features/purchases`) y pasa a minúsculas. Es lo que hace que
+ * "Toyota", "toyota", "  Toyota " y "Land   Rover" no puedan coexistir
+ * con "Land Rover".
  *
  * El pliegue de acentos tiene un costo aceptado: "Peña" y "Pena"
  * cuentan como el mismo nombre (ver design.md). El mensaje de rechazo
@@ -24,12 +28,7 @@ export const NAME_MAX_LENGTH = 80
  * único; `name` conserva siempre lo que el usuario capturó.
  */
 export function normalizeName(name: string): string {
-  return name
-    .trim()
-    .replace(/\s+/g, " ")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
+  return stripAccentsAndCollapseSpaces(name).toLowerCase()
 }
 
 /** Un nombre es utilizable si, una vez normalizado, no queda vacío. */

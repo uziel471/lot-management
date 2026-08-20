@@ -12,6 +12,7 @@ import { Vehicle } from "@/lib/db/models/vehicle"
 import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
 import { VehicleStatus } from "@/lib/db/models/vehicle-status"
+import { Purchase } from "@/lib/db/models/purchase"
 import { toMinorUnits } from "@/lib/money"
 import { getVehicleByCode } from "./queries"
 import {
@@ -439,6 +440,23 @@ export async function voidVehicle(
 
   try {
     await dbConnect()
+
+    const current = await Vehicle.findOne({ code }).select({ _id: 1 }).lean()
+    if (!current) return fail(NOT_FOUND)
+
+    // Un vehículo con compras vigentes no puede anularse: primero
+    // deben anularse sus compras (ver spec de add-purchases,
+    // "Edición y anulación de vehículos"). `features/vehicles` no
+    // importa `features/purchases`: la verificación consulta
+    // directamente el modelo de `lib/db/models/purchase.ts`.
+    const activePurchases = (await Purchase.find({ vehicleId: current._id, voidedAt: null })
+      .select({ code: 1 })
+      .lean()) as unknown as { code: string }[]
+    if (activePurchases.length > 0) {
+      const codes = activePurchases.map((purchase) => purchase.code).join(", ")
+      const message = `No se puede anular: tiene compras vigentes (${codes}). Anúlalas primero.`
+      return fail(message)
+    }
 
     const updated = await Vehicle.findOneAndUpdate(
       { code, voidedAt: null },

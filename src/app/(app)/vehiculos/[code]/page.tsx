@@ -6,8 +6,17 @@ import { VEHICLE_VOID_ROLES, VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { listActiveOptions } from "@/features/catalogs/queries"
 import { VehicleDetail } from "@/features/vehicles/components/vehicle-detail"
 import { getVehicleByCode } from "@/features/vehicles/queries"
+import { VehicleAcquisitionCost } from "@/features/purchases/components/vehicle-acquisition-cost"
+import { getVehicleAcquisitionCost, listPurchasesByVehicle } from "@/features/purchases/queries"
 
-/** Ficha de detalle de un vehículo: lectura, con acciones puntuales. */
+/**
+ * Ficha de detalle de un vehículo: lectura, con acciones puntuales.
+ *
+ * El costo de adquisición se compone aquí, no dentro de
+ * `features/vehicles`: esta página consulta ambas features y pasa el
+ * resultado como prop (ver design.md de `add-purchases`, "El costo
+ * acumulado se compone en la página, no en la feature").
+ */
 export default async function VehiculoDetallePage({
   params,
 }: {
@@ -24,7 +33,11 @@ export default async function VehiculoDetallePage({
     notFound()
   }
 
-  const statuses = await listActiveOptions("vehicleStatuses")
+  const [statuses, acquisitionCost, purchases] = await Promise.all([
+    listActiveOptions("vehicleStatuses"),
+    getVehicleAcquisitionCost(vehicle.id),
+    listPurchasesByVehicle(vehicle.id),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,6 +51,14 @@ export default async function VehiculoDetallePage({
         canWrite={VEHICLE_WRITE_ROLES.includes(user.role)}
         canVoid={VEHICLE_VOID_ROLES.includes(user.role)}
       />
+
+      {acquisitionCost ? (
+        <VehicleAcquisitionCost
+          vehicleId={vehicle.id}
+          cost={acquisitionCost}
+          purchases={purchases ?? []}
+        />
+      ) : null}
     </div>
   )
 }
