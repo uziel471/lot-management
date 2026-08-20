@@ -156,7 +156,7 @@ describe("moneda y conversión", () => {
       baseInput(vehicle.id, vendor.id, {
         currency: "MXN",
         exchangeRate: "18.50",
-        purchasePrice: "370000",
+        purchasePrice: "37000000",
       }),
     )
     expect(result.ok).toBe(true)
@@ -241,7 +241,7 @@ describe("control de signo y tipo", () => {
       baseInput(vehicle.id, vendor.id, {
         txType: "correction",
         correctsPurchaseId: initial.data.id,
-        purchasePrice: "9500",
+        purchasePrice: "950000",
       }),
     )
     expect(correction.ok).toBe(true)
@@ -407,13 +407,13 @@ describe("costo de adquisición acumulado", () => {
     await signInAs("admin")
     const { vehicle, vendor } = await seedVehicleAndVendor()
 
-    await createPurchase(baseInput(vehicle.id, vendor.id, { purchasePrice: "10000" }))
+    await createPurchase(baseInput(vehicle.id, vendor.id, { purchasePrice: "1000000" }))
     await createPurchase(
       baseInput(vehicle.id, vendor.id, {
         txType: "adjustment",
         currency: "MXN",
         exchangeRate: "18.50",
-        purchasePrice: "37000",
+        purchasePrice: "3700000",
       }),
     )
 

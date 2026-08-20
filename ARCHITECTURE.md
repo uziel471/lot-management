@@ -379,6 +379,8 @@ Los specs de `docs/borrador-specs/` son redacción adelantada, no contrato: cada
 
 ---
 
+**Pruebas manuales de aceptación: responsabilidad de Uziel, no de los agentes.** Cada `tasks.md` suele cerrar con un recorrido manual de aceptación (el equivalente al "criterio de salida" del plan v2). A partir de `add-purchases`, esa tarea la ejecuta Uziel directamente: un agente no la corre, no la marca `[x]` por su cuenta, y no vuelve a proponerla como pendiente en iteraciones futuras. En `tasks.md` se marca `[~]` (delegada) en vez de `[ ]`/`[x]`, y el resto del plan de un change puede darse por completo aunque esa tarea siga en `[~]`.
+
 ## 8. Roadmap
 
 Mismo orden que el plan v2, reordenado por lo que la migración hace necesario primero.

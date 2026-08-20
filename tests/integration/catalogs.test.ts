@@ -170,7 +170,11 @@ describe("dependencia marca → modelo", () => {
 
     const result = await createCatalogEntry("models", { name: "Corolla" })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error.toLowerCase()).toContain("marca")
+    // La ausencia de `makeId` la detecta el propio schema de Zod antes
+    // de llegar a la regla de dominio, así que el mensaje viaja en
+    // `fieldErrors.makeId` y no en `error` (que queda genérico, ver
+    // `failFromZodError`).
+    if (!result.ok) expect(result.fieldErrors?.makeId?.[0]?.toLowerCase()).toContain("marca")
   })
 
   it("rechaza un modelo bajo una marca desactivada", async () => {
