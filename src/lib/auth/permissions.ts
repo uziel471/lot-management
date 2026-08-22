@@ -35,6 +35,13 @@ const statement = {
    * inmutable"), así que no existe una operación que ocultar.
    */
   purchase: ["create", "void"],
+  /**
+   * Reparaciones: alta y cambios de ciclo de vida para `capturista`
+   * y `admin`; anulación reservada a `admin`. No hay `update`: una
+   * reparación se consulta y cambia de estado, no se reescribe como
+   * registro abierto después de capturarla.
+   */
+  repair: ["create", "transition", "complete", "cancel", "void"],
 } as const
 
 export const ac = createAccessControl(statement)
@@ -46,6 +53,7 @@ export const roles = {
     catalog: ["create", "update", "set-active"],
     vehicle: ["create", "update", "void"],
     purchase: ["create", "void"],
+    repair: ["create", "transition", "complete", "cancel", "void"],
   }),
   capturista: ac.newRole({
     user: [],
@@ -53,11 +61,13 @@ export const roles = {
     catalog: ["create", "update"],
     vehicle: ["create", "update"],
     purchase: ["create"],
+    repair: ["create", "transition", "complete", "cancel"],
   }),
   lectura: ac.newRole({
     user: [],
     session: [],
     catalog: [],
+    repair: [],
     vehicle: [],
     purchase: [],
   }),
@@ -90,3 +100,12 @@ export const VEHICLE_VOID_ROLES: readonly Role[] = ["admin"]
 export const PURCHASE_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
 export const PURCHASE_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
 export const PURCHASE_VOID_ROLES: readonly Role[] = ["admin"]
+
+/**
+ * Los roles de reparaciones: `lectura` solo consulta, `capturista`
+ * y `admin` registran y gestionan el ciclo operativo, y anular queda
+ * reservado a `admin`.
+ */
+export const REPAIR_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
+export const REPAIR_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
+export const REPAIR_VOID_ROLES: readonly Role[] = ["admin"]

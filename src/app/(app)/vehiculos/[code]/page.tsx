@@ -8,6 +8,9 @@ import { VehicleDetail } from "@/features/vehicles/components/vehicle-detail"
 import { getVehicleByCode } from "@/features/vehicles/queries"
 import { VehicleAcquisitionCost } from "@/features/purchases/components/vehicle-acquisition-cost"
 import { getVehicleAcquisitionCost, listPurchasesByVehicle } from "@/features/purchases/queries"
+import { VehicleRepairSummary } from "@/features/repairs/components/vehicle-repair-summary"
+import { getVehicleRepairSummary } from "@/features/repairs/queries"
+import { REPAIR_WRITE_ROLES } from "@/lib/auth/permissions"
 
 /**
  * Ficha de detalle de un vehículo: lectura, con acciones puntuales.
@@ -33,10 +36,11 @@ export default async function VehiculoDetallePage({
     notFound()
   }
 
-  const [statuses, acquisitionCost, purchases] = await Promise.all([
+  const [statuses, acquisitionCost, purchases, repairSummary] = await Promise.all([
     listActiveOptions("vehicleStatuses"),
     getVehicleAcquisitionCost(vehicle.id),
     listPurchasesByVehicle(vehicle.id),
+    getVehicleRepairSummary(vehicle.id),
   ])
 
   return (
@@ -59,6 +63,15 @@ export default async function VehiculoDetallePage({
           cost={acquisitionCost}
           purchases={purchases ?? []}
           canWrite={PURCHASE_WRITE_ROLES.includes(user.role)}
+        />
+      ) : null}
+
+      {repairSummary ? (
+        <VehicleRepairSummary
+          vehicleId={vehicle.id}
+          vehicleCode={vehicle.code}
+          summary={repairSummary}
+          canWrite={REPAIR_WRITE_ROLES.includes(user.role)}
         />
       ) : null}
     </div>

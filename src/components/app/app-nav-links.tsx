@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   Tags,
   Users,
+  Wrench,
 } from "lucide-react"
 
 import type { AppNavIcon, AppNavigationItem } from "@/components/app/app-navigation"
@@ -18,6 +19,7 @@ const iconMap: Record<AppNavIcon, React.ComponentType<{ className?: string }>> =
   dashboard: LayoutDashboard,
   vehicles: CarFront,
   purchases: ShoppingCart,
+  repairs: Wrench,
   catalogs: Tags,
   users: Users,
   account: CircleUserRound,
