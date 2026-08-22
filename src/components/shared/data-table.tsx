@@ -37,6 +37,7 @@ export function DataTable<T>({
   getSearchText,
   searchValue,
   onSearchValueChange,
+  searchLabel = "Buscar",
   filterPlaceholder = "Buscar…",
   searchInputClassName,
   emptyTitle = "Sin resultados",
@@ -51,6 +52,11 @@ export function DataTable<T>({
   footer,
   rowActions,
   rowClassName,
+  actionsLabel = "Acciones",
+  showCount = true,
+  countLabel,
+  tableClassName,
+  tableWrapperClassName,
 }: {
   columns: DataTableColumn<T>[]
   rows: T[]
@@ -58,6 +64,7 @@ export function DataTable<T>({
   getSearchText?: (row: T) => string
   searchValue?: string
   onSearchValueChange?: (value: string) => void
+  searchLabel?: string
   filterPlaceholder?: string
   searchInputClassName?: string
   emptyTitle?: string
@@ -72,6 +79,11 @@ export function DataTable<T>({
   footer?: React.ReactNode
   rowActions?: (row: T) => React.ReactNode
   rowClassName?: (row: T) => string | undefined
+  actionsLabel?: string
+  showCount?: boolean
+  countLabel?: (visibleRows: number, totalRows: number) => React.ReactNode
+  tableClassName?: string
+  tableWrapperClassName?: string
 }) {
   const [internalFilter, setInternalFilter] = useState("")
   const filter = searchValue ?? internalFilter
@@ -94,20 +106,26 @@ export function DataTable<T>({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {getSearchText ? (
-          <Input
-            value={filter}
-            onChange={(event) => handleFilterChange(event.target.value)}
-            placeholder={filterPlaceholder}
-            aria-label={filterPlaceholder}
-            className={cn("max-w-64", searchInputClassName)}
-          />
-        ) : (
-          <span />
-        )}
-        {toolbar}
-      </div>
+      {getSearchText || toolbar ? (
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          {getSearchText ? (
+            <div className="flex min-w-52 flex-col gap-1">
+              <label className="text-xs text-muted-foreground" htmlFor="data-table-search">
+                {searchLabel}
+              </label>
+              <Input
+                id="data-table-search"
+                value={filter}
+                onChange={(event) => handleFilterChange(event.target.value)}
+                placeholder={filterPlaceholder}
+                aria-label={filterPlaceholder}
+                className={cn("max-w-64", searchInputClassName)}
+              />
+            </div>
+          ) : null}
+          {toolbar}
+        </div>
+      ) : null}
 
       {summary ? <div>{summary}</div> : null}
 
@@ -119,8 +137,8 @@ export function DataTable<T>({
           {isFiltered ? filteredEmptyAction : emptyAction}
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
+        <div className={cn("overflow-x-auto rounded-lg border", tableWrapperClassName)}>
+          <Table className={tableClassName}>
             <TableHeader>
               <TableRow>
                 {columns.map((column) => (
@@ -128,7 +146,7 @@ export function DataTable<T>({
                     {column.label}
                   </TableHead>
                 ))}
-                {rowActions ? <TableHead className="text-right">Acciones</TableHead> : null}
+                {rowActions ? <TableHead className="w-px text-right">{actionsLabel}</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,9 +169,13 @@ export function DataTable<T>({
 
       {footer ? <div>{footer}</div> : null}
 
-      <p className="text-xs text-muted-foreground">
-        {visibleRows.length} de {rows.length} {rows.length === 1 ? "registro" : "registros"}
-      </p>
+      {showCount ? (
+        <p className="text-xs text-muted-foreground">
+          {countLabel
+            ? countLabel(visibleRows.length, rows.length)
+            : `${visibleRows.length} de ${rows.length} ${rows.length === 1 ? "registro" : "registros"}`}
+        </p>
+      ) : null}
     </div>
   )
 }

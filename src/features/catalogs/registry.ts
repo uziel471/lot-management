@@ -83,6 +83,10 @@ export type CatalogMeta = {
   plural: string
   description: string
   newEntryLabel: string
+  searchPlaceholder: string
+  emptyDescription: string
+  filteredEmptyDescription: string
+  formDescription: string
   columns: CatalogColumnDef[]
   fields: CatalogFieldDef[]
 }
@@ -112,8 +116,16 @@ const definitions: Record<CatalogKey, CatalogDefinition> = {
     routeKey: "marcas",
     singular: "Marca",
     plural: "Marcas",
-    description: "Las marcas de vehículo que el lote maneja.",
+    description:
+      "Administra las marcas que habilitan la captura y mantienen visible el contexto operativo de sus modelos.",
     newEntryLabel: "Nueva marca",
+    searchPlaceholder: "Buscar por código o nombre",
+    emptyDescription:
+      "Da de alta la primera marca para habilitar la captura de modelos y vehículos.",
+    filteredEmptyDescription:
+      "Ajusta o limpia los filtros para volver a ver las marcas disponibles.",
+    formDescription:
+      "Registra la marca tal como debe aparecer en los catálogos operativos.",
     codePrefix: "MAKE",
     model: Make as unknown as CatalogModel,
     schema: makeSchema,
@@ -126,8 +138,16 @@ const definitions: Record<CatalogKey, CatalogDefinition> = {
     routeKey: "modelos",
     singular: "Modelo",
     plural: "Modelos",
-    description: "Los modelos de cada marca. Un modelo pertenece a exactamente una marca.",
+    description:
+      "Cada modelo pertenece a una marca activa. Usa esta vista para mantener visible esa dependencia.",
     newEntryLabel: "Nuevo modelo",
+    searchPlaceholder: "Buscar por código, modelo o marca",
+    emptyDescription:
+      "Primero activa una marca y después registra sus modelos para que aparezcan en captura.",
+    filteredEmptyDescription:
+      "Ajusta o limpia los filtros para volver a ver los modelos disponibles.",
+    formDescription:
+      "Selecciona una marca activa y registra el modelo dentro de ese contexto.",
     codePrefix: "MODEL",
     model: VehicleModel as unknown as CatalogModel,
     schema: modelSchema,
@@ -146,6 +166,13 @@ const definitions: Record<CatalogKey, CatalogDefinition> = {
     description:
       "Las etapas por las que pasa un vehículo. El orden manda sobre el código: deja huecos para poder intercalar.",
     newEntryLabel: "Nuevo estatus",
+    searchPlaceholder: "Buscar por orden, código o nombre",
+    emptyDescription:
+      "Registra el primer estatus para empezar a ordenar el flujo operativo del vehículo.",
+    filteredEmptyDescription:
+      "Ajusta o limpia los filtros para volver a ver los estatus disponibles.",
+    formDescription:
+      "Define el nombre operativo, el orden explícito y la descripción opcional del estatus.",
     codePrefix: "STATUS",
     model: VehicleStatus as unknown as CatalogModel,
     schema: vehicleStatusSchema,
@@ -180,8 +207,16 @@ const definitions: Record<CatalogKey, CatalogDefinition> = {
     routeKey: "proveedores",
     singular: "Proveedor",
     plural: "Proveedores",
-    description: "De quién se compran los vehículos: subastas, dealers y particulares.",
+    description:
+      "Mantiene visibles los proveedores y sus datos de contacto para compras y seguimiento operativo.",
     newEntryLabel: "Nuevo proveedor",
+    searchPlaceholder: "Buscar por código, nombre o contacto",
+    emptyDescription:
+      "Registra el primer proveedor para usarlo en el flujo de compras.",
+    filteredEmptyDescription:
+      "Ajusta o limpia los filtros para volver a ver los proveedores disponibles.",
+    formDescription:
+      "Captura el nombre y los datos de contacto que hagan falta para compras y seguimiento.",
     codePrefix: "VEND",
     model: Vendor as unknown as CatalogModel,
     schema: vendorSchema,
@@ -189,7 +224,7 @@ const definitions: Record<CatalogKey, CatalogDefinition> = {
     columns: [
       CODE_COLUMN,
       NAME_COLUMN,
-      { key: "phone", label: "Teléfono" },
+      { key: "contact", label: "Contacto" },
       { key: "city", label: "Ciudad" },
       STATUS_COLUMN,
     ],
@@ -228,6 +263,10 @@ export function toCatalogMeta(definition: CatalogDefinition): CatalogMeta {
     plural: definition.plural,
     description: definition.description,
     newEntryLabel: definition.newEntryLabel,
+    searchPlaceholder: definition.searchPlaceholder,
+    emptyDescription: definition.emptyDescription,
+    filteredEmptyDescription: definition.filteredEmptyDescription,
+    formDescription: definition.formDescription,
     columns: definition.columns,
     fields: definition.fields,
   }

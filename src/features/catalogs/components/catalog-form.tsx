@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react"
 
+import { EmptyState } from "@/components/shared/empty-state"
 import { SubmitButton } from "@/components/shared/submit-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -46,10 +47,15 @@ export function CatalogForm({
 }) {
   const [open, setOpen] = useState(false)
   const isEdit = Boolean(entry)
+  const isModelCatalog = meta.key === "models"
+  const hasActiveMakes = makeOptions.length > 0
+  const currentMakeUnavailable = Boolean(
+    isModelCatalog &&
+      entry?.makeId &&
+      !makeOptions.some((option) => option.id === entry.makeId),
+  )
+  const formBlocked = isModelCatalog && !hasActiveMakes
 
-  // La confirmación y el cierre del diálogo ocurren dentro de la
-  // propia acción, no en un efecto: es el resultado de la escritura
-  // lo que los dispara, no un cambio de estado que haya que observar.
   const [state, formAction] = useActionState<ActionResult<CatalogEntryDTO> | null, FormData>(
     async (previousState, formData) => {
       const result = await saveCatalogEntryAction(previousState, formData)
@@ -70,31 +76,56 @@ export function CatalogForm({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger} />
-      <DialogContent>
+      <DialogContent className="w-[min(36rem,calc(100vw-2rem))]">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? `Editar ${meta.singular.toLowerCase()}` : meta.newEntryLabel}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Código ${entry?.code}. El código no se puede cambiar.`
-              : "El sistema asigna el código al guardar."}
+              ? `Código ${entry?.code}. ${meta.formDescription}`
+              : `${meta.formDescription} El sistema asigna el código al guardar.`}
           </DialogDescription>
         </DialogHeader>
 
-        <form action={formAction} className="flex flex-col gap-3">
+        <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="catalogKey" value={meta.key} />
           {entry ? <input type="hidden" name="code" value={entry.code} /> : null}
 
-          {meta.fields.map((field) => (
-            <CatalogFormField
-              key={field.name}
-              field={field}
-              entry={entry}
-              makeOptions={makeOptions}
-              errors={fieldErrors[field.name]}
+          {isEdit ? (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Código del sistema: <span className="font-mono text-foreground">{entry?.code}</span>
+            </div>
+          ) : null}
+
+          {formBlocked ? (
+            <EmptyState
+              title="No hay marcas activas disponibles"
+              description="Reactiva o registra una marca antes de crear o reasignar modelos. La validación del servidor sigue exigiendo una marca activa."
+              className="items-start px-4 py-5 text-left"
             />
-          ))}
+          ) : null}
+
+          {currentMakeUnavailable ? (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+              La marca actual de este modelo está inactiva. Selecciona una marca activa para
+              reasignarlo antes de guardar.
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {meta.fields.map((field) => (
+              <CatalogFormField
+                key={field.name}
+                field={field}
+                entry={entry}
+                makeOptions={makeOptions}
+                errors={fieldErrors[field.name]}
+                disabled={formBlocked}
+                currentMakeUnavailable={currentMakeUnavailable}
+              />
+            ))}
+          </div>
 
           {state && !state.ok ? (
             <p className="text-sm text-destructive" role="alert">
@@ -110,7 +141,9 @@ export function CatalogForm({
                 </Button>
               }
             />
-            <SubmitButton size="sm">{isEdit ? "Guardar cambios" : "Crear"}</SubmitButton>
+            <SubmitButton size="sm" pendingLabel="Guardando..." disabled={formBlocked}>
+              {isEdit ? "Guardar cambios" : "Guardar"}
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -123,22 +156,35 @@ function CatalogFormField({
   entry,
   makeOptions,
   errors,
+  disabled,
+  currentMakeUnavailable,
 }: {
   field: CatalogFieldDef
   entry?: CatalogEntryDTO
   makeOptions: CatalogOption[]
   errors?: string[]
+  disabled?: boolean
+  currentMakeUnavailable?: boolean
 }) {
   const raw = entry ? (entry as unknown as Record<string, unknown>)[field.name] : undefined
-  const defaultValue = raw === null || raw === undefined ? "" : String(raw)
+  const defaultValue =
+    currentMakeUnavailable && field.type === "make"
+      ? ""
+      : raw === null || raw === undefined
+        ? ""
+        : String(raw)
   const invalid = Boolean(errors?.length)
   const id = `catalog-field-${field.name}`
+  const isTextarea = field.type === "textarea"
 
   return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={id}>
-        {field.label}
-        {field.required ? <span className="text-destructive">*</span> : null}
+    <div className={isTextarea ? "flex flex-col gap-1 sm:col-span-2" : "flex flex-col gap-1"}>
+      <Label htmlFor={id} className="flex items-center gap-1.5">
+        <span>
+          {field.label}
+          {field.required ? <span className="text-destructive"> *</span> : null}
+        </span>
+        {!field.required ? <span className="text-xs text-muted-foreground">Opcional</span> : null}
       </Label>
 
       {field.type === "make" ? (
@@ -148,8 +194,14 @@ function CatalogFormField({
           defaultValue={defaultValue}
           required={field.required}
           aria-invalid={invalid}
+          disabled={disabled}
         >
           <option value="">Selecciona una marca</option>
+          {currentMakeUnavailable && entry?.makeId && entry.makeName ? (
+            <option value={entry.makeId} disabled>
+              {entry.makeName} (inactiva)
+            </option>
+          ) : null}
           {makeOptions.map((option) => (
             <option key={option.id} value={option.id}>
               {option.name}
@@ -164,6 +216,7 @@ function CatalogFormField({
           required={field.required}
           placeholder={field.placeholder}
           aria-invalid={invalid}
+          disabled={disabled}
         />
       ) : (
         <Input
@@ -175,12 +228,11 @@ function CatalogFormField({
           required={field.required}
           placeholder={field.placeholder}
           aria-invalid={invalid}
+          disabled={disabled}
         />
       )}
 
-      {field.helpText ? (
-        <p className="text-xs text-muted-foreground">{field.helpText}</p>
-      ) : null}
+      {field.helpText ? <p className="text-xs text-muted-foreground">{field.helpText}</p> : null}
       {errors?.map((error) => (
         <p key={error} className="text-xs text-destructive">
           {error}
