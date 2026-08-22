@@ -23,6 +23,7 @@ import type {
   PurchaseFilters,
   PurchaseListItemDTO,
   VehicleAcquisitionCostDTO,
+  VehicleAcquisitionCostPreviewDTO,
   VoidedPurchaseOptionDTO,
 } from "./types"
 
@@ -355,6 +356,48 @@ export async function getVehicleAcquisitionCost(
     components: accumulation.components,
     purchaseCount: purchases.filter((p) => !p.voidedAt).length,
   }
+}
+
+export async function getVehicleAcquisitionCostPreviews(
+  vehicleIds: readonly string[],
+): Promise<Map<string, VehicleAcquisitionCostPreviewDTO>> {
+  const session = await requireRole(PURCHASE_READ_ROLES)
+  if (!session) return new Map()
+
+  const validIds = vehicleIds.filter((vehicleId) => Types.ObjectId.isValid(vehicleId))
+  if (validIds.length === 0) return new Map()
+
+  await dbConnect()
+  const purchases = (await Purchase.find({
+    vehicleId: { $in: validIds.map((vehicleId) => new Types.ObjectId(vehicleId)) },
+  }).lean()) as unknown as PurchaseLean[]
+
+  const byVehicle = new Map<string, PurchaseLean[]>()
+  for (const purchase of purchases) {
+    const key = String(purchase.vehicleId)
+    byVehicle.set(key, [...(byVehicle.get(key) ?? []), purchase])
+  }
+
+  return new Map(
+    validIds.map((vehicleId) => {
+      const rows = byVehicle.get(vehicleId) ?? []
+      const accumulation = accumulateAcquisitionCost(
+        rows.map((purchase) => ({
+          currency: purchase.currency,
+          exchangeRate: exchangeRateToString(purchase.exchangeRate),
+          components: componentsOf(purchase),
+          voidedAt: purchase.voidedAt,
+        })),
+      )
+      return [
+        vehicleId,
+        {
+          totalUsd: accumulation.total,
+          purchaseCount: rows.filter((purchase) => !purchase.voidedAt).length,
+        } satisfies VehicleAcquisitionCostPreviewDTO,
+      ]
+    }),
+  )
 }
 
 /** Compras anuladas de un vehículo sin corrección aún, para el desplegable de `correctsPurchaseId`. */

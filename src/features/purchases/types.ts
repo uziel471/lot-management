@@ -71,6 +71,11 @@ export type VehicleAcquisitionCostDTO = {
   purchaseCount: number
 }
 
+export type VehicleAcquisitionCostPreviewDTO = {
+  totalUsd: Money
+  purchaseCount: number
+}
+
 export type PurchaseFilters = {
   vehicleId?: string
   vendorId?: string

@@ -7,6 +7,7 @@ export type AppNavIcon =
   | "payments"
   | "repairs"
   | "expenses"
+  | "sales"
   | "catalogs"
   | "users"
   | "account"
@@ -23,6 +24,7 @@ const APP_NAVIGATION: AppNavigationItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard", match: "exact" },
   { href: "/vehiculos", label: "Vehiculos", icon: "vehicles", match: "prefix" },
   { href: "/compras", label: "Compras", icon: "purchases", match: "prefix" },
+  { href: "/ventas", label: "Ventas", icon: "sales", match: "prefix" },
   { href: "/pagos", label: "Pagos", icon: "payments", match: "prefix" },
   { href: "/reparaciones", label: "Reparaciones", icon: "repairs", match: "prefix" },
   { href: "/gastos", label: "Gastos", icon: "expenses", match: "prefix" },

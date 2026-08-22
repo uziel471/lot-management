@@ -91,3 +91,8 @@ export type VehicleRepairSummaryDTO = {
   rows: RepairListItemDTO[]
   statusSummary: VehicleRepairStatusSummaryDTO[]
 }
+
+export type VehicleRepairPreviewDTO = {
+  activeTotalUsd: Money
+  activeCount: number
+}

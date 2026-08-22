@@ -15,6 +15,7 @@ import { VehicleStatus } from "@/lib/db/models/vehicle-status"
 import { Purchase } from "@/lib/db/models/purchase"
 import { Expense } from "@/lib/db/models/expense"
 import { Repair } from "@/lib/db/models/repair"
+import { Sale } from "@/lib/db/models/sale"
 import { getBlockingPaymentsForSources } from "@/features/payments/queries"
 import { toMinorUnits } from "@/lib/money"
 import { getVehicleByCode } from "./queries"
@@ -459,6 +460,13 @@ export async function voidVehicle(
       const codes = activePurchases.map((purchase) => purchase.code).join(", ")
       const message = `No se puede anular: tiene compras vigentes (${codes}). Anúlalas primero.`
       return fail(message)
+    }
+
+    const activeSale = await Sale.findOne({ vehicleId: current._id, voidedAt: null })
+      .select({ code: 1 })
+      .lean()
+    if (activeSale) {
+      return fail(`No se puede anular: tiene una venta activa (${activeSale.code}). Anúlala primero.`)
     }
 
     const [expenses, repairs] = await Promise.all([

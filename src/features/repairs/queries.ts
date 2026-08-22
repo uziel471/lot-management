@@ -28,6 +28,7 @@ import type {
   RepairStatusHistoryEntryDTO,
   VehicleRepairStatusSummaryDTO,
   VehicleRepairSummaryDTO,
+  VehicleRepairPreviewDTO,
 } from "./types"
 
 type RepairLean = {
@@ -408,4 +409,50 @@ export async function getVehicleRepairSummary(vehicleId: string): Promise<Vehicl
     rows,
     statusSummary,
   }
+}
+
+export async function getVehicleRepairPreviews(
+  vehicleIds: readonly string[],
+): Promise<Map<string, VehicleRepairPreviewDTO>> {
+  const session = await requireRole(REPAIR_READ_ROLES)
+  if (!session) return new Map()
+
+  const validIds = vehicleIds.filter((vehicleId) => Types.ObjectId.isValid(vehicleId))
+  if (validIds.length === 0) return new Map()
+
+  await dbConnect()
+  const repairs = (await Repair.find({
+    vehicleId: { $in: validIds.map((vehicleId) => new Types.ObjectId(vehicleId)) },
+  }).lean()) as unknown as RepairLean[]
+
+  const byVehicle = new Map<string, RepairLean[]>()
+  for (const repair of repairs) {
+    const key = String(repair.vehicleId)
+    byVehicle.set(key, [...(byVehicle.get(key) ?? []), repair])
+  }
+
+  return new Map(
+    validIds.map((vehicleId) => {
+      const rows = byVehicle.get(vehicleId) ?? []
+      const accumulation = accumulateActiveRepairCost(
+        rows.map((repair) => ({
+          currency: repair.currency,
+          exchangeRate: exchangeRateToString(repair.exchangeRate),
+          components: componentsOf(repair),
+          status: repair.status,
+          voidedAt: repair.voidedAt,
+        })),
+      )
+      return [
+        vehicleId,
+        {
+          activeTotalUsd: accumulation.total,
+          activeCount: rows.filter(
+            (repair) =>
+              !repair.voidedAt && ["requested", "quoted", "inProgress"].includes(repair.status),
+          ).length,
+        } satisfies VehicleRepairPreviewDTO,
+      ]
+    }),
+  )
 }

@@ -53,6 +53,11 @@ const statement = {
    * del alta.
    */
   payment: ["create", "void"],
+  /**
+   * Ventas: alta para `capturista` y `admin`; anulación reservada a
+   * `admin`. La venta es inmutable fuera de esa anulación.
+   */
+  sale: ["create", "void"],
 } as const
 
 export const ac = createAccessControl(statement)
@@ -67,6 +72,7 @@ export const roles = {
     repair: ["create", "transition", "complete", "cancel", "void"],
     expense: ["create", "void"],
     payment: ["create", "void"],
+    sale: ["create", "void"],
   }),
   capturista: ac.newRole({
     user: [],
@@ -77,6 +83,7 @@ export const roles = {
     repair: ["create", "transition", "complete", "cancel"],
     expense: ["create"],
     payment: ["create"],
+    sale: ["create"],
   }),
   lectura: ac.newRole({
     user: [],
@@ -87,6 +94,7 @@ export const roles = {
     purchase: [],
     expense: [],
     payment: [],
+    sale: [],
   }),
 } satisfies Record<Role, ReturnType<typeof ac.newRole>>
 
@@ -142,3 +150,7 @@ export const EXPENSE_VOID_ROLES: readonly Role[] = ["admin"]
 export const PAYMENT_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
 export const PAYMENT_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
 export const PAYMENT_VOID_ROLES: readonly Role[] = ["admin"]
+
+export const SALE_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
+export const SALE_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
+export const SALE_VOID_ROLES: readonly Role[] = ["admin"]

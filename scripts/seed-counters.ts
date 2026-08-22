@@ -23,11 +23,13 @@ import { listCatalogs } from "../src/features/catalogs/registry"
 import { Vehicle } from "../src/lib/db/models/vehicle"
 import { Purchase } from "../src/lib/db/models/purchase"
 import { Payment } from "../src/lib/db/models/payment"
+import { Sale } from "../src/lib/db/models/sale"
 
 /** Prefijos de contador fuera del registro de catálogos. */
 const VEHICLE_CODE_PREFIX = "VEH"
 const PURCHASE_CODE_PREFIX = "PUR"
 const PAYMENT_CODE_PREFIX = "PAY"
+const SALE_CODE_PREFIX = "SAL"
 
 /** Extrae el número de un código `PREFIJO-NNNN`. Devuelve 0 si no encaja. */
 function sequenceOf(code: string, prefix: string): number {
@@ -93,6 +95,11 @@ export async function realignCounters(): Promise<CounterRealignment[]> {
     .select({ code: 1 })
     .lean()) as unknown as { code: string }[]
   report.push(await realignOne(PAYMENT_CODE_PREFIX, paymentDocuments))
+
+  const saleDocuments = (await Sale.find({})
+    .select({ code: 1 })
+    .lean()) as unknown as { code: string }[]
+  report.push(await realignOne(SALE_CODE_PREFIX, saleDocuments))
 
   return report
 }

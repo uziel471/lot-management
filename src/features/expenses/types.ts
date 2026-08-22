@@ -75,3 +75,8 @@ export type VehicleExpenseSummaryDTO = {
   rows: ExpenseListItemDTO[]
   categorySummary: VehicleExpenseCategorySummaryDTO[]
 }
+
+export type VehicleExpensePreviewDTO = {
+  activeTotalUsd: Money
+  activeCount: number
+}

@@ -6,12 +6,15 @@ import {
   EXPENSE_WRITE_ROLES,
   PURCHASE_WRITE_ROLES,
   REPAIR_WRITE_ROLES,
+  SALE_WRITE_ROLES,
   VEHICLE_VOID_ROLES,
   VEHICLE_WRITE_ROLES,
 } from "@/lib/auth/permissions"
 import { listActiveOptions } from "@/features/catalogs/queries"
 import { VehicleExpenseSummary } from "@/features/expenses/components/vehicle-expense-summary"
 import { getVehicleExpenseSummary } from "@/features/expenses/queries"
+import { VehicleSaleSummary } from "@/features/sales/components/vehicle-sale-summary"
+import { getVehicleSaleSummary } from "@/features/sales/queries"
 import { VehicleDetail } from "@/features/vehicles/components/vehicle-detail"
 import { getVehicleByCode } from "@/features/vehicles/queries"
 import { VehicleAcquisitionCost } from "@/features/purchases/components/vehicle-acquisition-cost"
@@ -43,12 +46,13 @@ export default async function VehiculoDetallePage({
     notFound()
   }
 
-  const [statuses, acquisitionCost, purchases, repairSummary, expenseSummary] = await Promise.all([
+  const [statuses, acquisitionCost, purchases, repairSummary, expenseSummary, saleSummary] = await Promise.all([
     listActiveOptions("vehicleStatuses"),
     getVehicleAcquisitionCost(vehicle.id),
     listPurchasesByVehicle(vehicle.id),
     getVehicleRepairSummary(vehicle.id),
     getVehicleExpenseSummary(vehicle.id),
+    getVehicleSaleSummary(vehicle.id),
   ])
 
   return (
@@ -89,6 +93,14 @@ export default async function VehiculoDetallePage({
           vehicleCode={vehicle.code}
           summary={expenseSummary}
           canWrite={EXPENSE_WRITE_ROLES.includes(user.role)}
+        />
+      ) : null}
+
+      {saleSummary ? (
+        <VehicleSaleSummary
+          vehicleId={vehicle.id}
+          summary={saleSummary}
+          canWrite={SALE_WRITE_ROLES.includes(user.role)}
         />
       ) : null}
     </div>

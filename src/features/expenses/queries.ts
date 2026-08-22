@@ -29,6 +29,7 @@ import type {
   ExpenseFilters,
   ExpenseListItemDTO,
   VehicleExpenseCategorySummaryDTO,
+  VehicleExpensePreviewDTO,
   VehicleExpenseSummaryDTO,
 } from "./types"
 
@@ -380,4 +381,48 @@ export async function getVehicleExpenseSummary(vehicleId: string): Promise<Vehic
     rows,
     categorySummary,
   }
+}
+
+export async function getVehicleExpensePreviews(
+  vehicleIds: readonly string[],
+): Promise<Map<string, VehicleExpensePreviewDTO>> {
+  const session = await requireRole(EXPENSE_READ_ROLES)
+  if (!session) return new Map()
+
+  const validIds = vehicleIds.filter((vehicleId) => Types.ObjectId.isValid(vehicleId))
+  if (validIds.length === 0) return new Map()
+
+  await dbConnect()
+  const expenses = (await Expense.find({
+    vehicleId: { $in: validIds.map((vehicleId) => new Types.ObjectId(vehicleId)) },
+  }).lean()) as unknown as ExpenseLean[]
+
+  const byVehicle = new Map<string, ExpenseLean[]>()
+  for (const expense of expenses) {
+    if (!expense.vehicleId) continue
+    const key = String(expense.vehicleId)
+    byVehicle.set(key, [...(byVehicle.get(key) ?? []), expense])
+  }
+
+  return new Map(
+    validIds.map((vehicleId) => {
+      const rows = byVehicle.get(vehicleId) ?? []
+      const accumulation = summarizeVehicleExpenses(
+        rows.map((expense) => ({
+          category: expense.category,
+          currency: expense.currency,
+          exchangeRate: exchangeRateToString(expense.exchangeRate),
+          components: componentsOf(expense),
+          voidedAt: expense.voidedAt,
+        })),
+      )
+      return [
+        vehicleId,
+        {
+          activeTotalUsd: accumulation.totalUsd,
+          activeCount: rows.filter((expense) => !expense.voidedAt).length,
+        } satisfies VehicleExpensePreviewDTO,
+      ]
+    }),
+  )
 }
