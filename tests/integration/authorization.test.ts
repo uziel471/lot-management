@@ -78,17 +78,23 @@ describe("último administrador", () => {
 
   it("rechaza degradar al único admin activo", async () => {
     const auth = await getAuth()
+    const uniqueEmail = `unico-${Math.random().toString(36).slice(2)}@lote.com`
     await auth.api.createUser({
-      body: { name: "Único Admin", email: "unico@lote.com", password: "password123", role: "admin" },
+      body: { name: "Único Admin", email: uniqueEmail, password: "password123", role: "admin" },
     })
     const response = await auth.api.signInEmail({
-      body: { email: "unico@lote.com", password: "password123" },
+      body: { email: uniqueEmail, password: "password123" },
       asResponse: true,
     })
     ctx.headers = new Headers({ cookie: setCookieToCookieHeader(response.headers.get("set-cookie")) })
 
     const { users } = await auth.api.listUsers({ query: {}, headers: ctx.headers })
-    const self = users.find((u) => u.email === "unico@lote.com")!
+    const self = users.find((u) => u.email === uniqueEmail)!
+
+    for (const otherAdmin of users.filter((user) => user.id !== self.id && user.role === "admin" && !user.banned)) {
+      const result = await deactivateUserAction({ userId: otherAdmin.id })
+      expect(result.ok).toBe(true)
+    }
 
     const result = await changeRoleAction({ userId: self.id, role: "capturista" })
     expect(result.ok).toBe(false)

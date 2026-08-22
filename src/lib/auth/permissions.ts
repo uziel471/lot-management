@@ -41,7 +41,7 @@ export const ac = createAccessControl(statement)
 
 export const roles = {
   admin: ac.newRole({
-    user: ["create", "list", "set-role", "ban", "delete", "set-password", "get", "update"],
+    user: ["create", "list", "set-role", "ban", "delete", "set-password", "set-email", "get", "update"],
     session: ["list", "revoke", "delete"],
     catalog: ["create", "update", "set-active"],
     vehicle: ["create", "update", "void"],
