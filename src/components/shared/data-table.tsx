@@ -38,6 +38,11 @@ export function DataTable<T>({
   filterPlaceholder = "Buscar…",
   emptyTitle = "Sin resultados",
   emptyDescription,
+  emptyAction,
+  filteredEmptyTitle = "Ningún resultado para ese filtro",
+  filteredEmptyDescription,
+  filteredEmptyAction,
+  hasActiveFilters = false,
   toolbar,
   rowActions,
   rowClassName,
@@ -49,6 +54,11 @@ export function DataTable<T>({
   filterPlaceholder?: string
   emptyTitle?: string
   emptyDescription?: string
+  emptyAction?: React.ReactNode
+  filteredEmptyTitle?: string
+  filteredEmptyDescription?: string
+  filteredEmptyAction?: React.ReactNode
+  hasActiveFilters?: boolean
   toolbar?: React.ReactNode
   rowActions?: (row: T) => React.ReactNode
   rowClassName?: (row: T) => string | undefined
@@ -60,6 +70,7 @@ export function DataTable<T>({
     if (!needle || !getSearchText) return rows
     return rows.filter((row) => getSearchText(row).toLowerCase().includes(needle))
   }, [filter, rows, getSearchText])
+  const isFiltered = hasActiveFilters || Boolean(filter.trim())
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,36 +91,40 @@ export function DataTable<T>({
 
       {visibleRows.length === 0 ? (
         <EmptyState
-          title={rows.length === 0 ? emptyTitle : "Ningún resultado para ese filtro"}
-          description={rows.length === 0 ? emptyDescription : undefined}
-        />
+          title={isFiltered ? filteredEmptyTitle : emptyTitle}
+          description={isFiltered ? filteredEmptyDescription : emptyDescription}
+        >
+          {isFiltered ? filteredEmptyAction : emptyAction}
+        </EmptyState>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columns.map((column) => (
-                <TableHead key={column.key} className={cn(column.numeric && "text-right")}>
-                  {column.label}
-                </TableHead>
-              ))}
-              {rowActions ? <TableHead className="text-right">Acciones</TableHead> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visibleRows.map((row) => (
-              <TableRow key={getRowId(row)} className={rowClassName?.(row)}>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
                 {columns.map((column) => (
-                  <TableCell key={column.key} className={cn(column.numeric && "text-right")}>
-                    {column.render ? column.render(row) : null}
-                  </TableCell>
+                  <TableHead key={column.key} className={cn(column.numeric && "text-right")}>
+                    {column.label}
+                  </TableHead>
                 ))}
-                {rowActions ? (
-                  <TableCell className="text-right">{rowActions(row)}</TableCell>
-                ) : null}
+                {rowActions ? <TableHead className="text-right">Acciones</TableHead> : null}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {visibleRows.map((row) => (
+                <TableRow key={getRowId(row)} className={rowClassName?.(row)}>
+                  {columns.map((column) => (
+                    <TableCell key={column.key} className={cn(column.numeric && "text-right")}>
+                      {column.render ? column.render(row) : null}
+                    </TableCell>
+                  ))}
+                  {rowActions ? (
+                    <TableCell className="text-right">{rowActions(row)}</TableCell>
+                  ) : null}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <p className="text-xs text-muted-foreground">

@@ -146,3 +146,22 @@ The design system SHALL define a migration strategy that keeps existing modules 
 
 - **WHEN** the first module redesign is planned after the design system is established
 - **THEN** Vehicles is used to validate table, filter, form, detail, status, and feedback patterns before broader migration
+
+### Requirement: Vehicle redesigns apply the shared system
+
+Operational module redesigns SHALL apply `docs/design-system/UI_GUIDELINES.md` as an implementation constraint and MUST NOT introduce module-specific visual systems, navigation patterns, forms, tables, filters, states, or feedback patterns when an applicable shared pattern already exists. The Vehicles module SHALL serve as the initial validation of shared listing, filters, forms, detail, status, confirmation, feedback, and responsive behavior patterns.
+
+#### Scenario: Vehicle redesign follows the guidelines
+
+- **WHEN** the Vehicles module redesign is implemented
+- **THEN** its inventory, create, edit, and detail screens apply `docs/design-system/UI_GUIDELINES.md` and reuse the available shared patterns
+
+#### Scenario: Missing pattern becomes shared
+
+- **WHEN** the Vehicles redesign needs a reusable pattern that does not yet exist
+- **THEN** that pattern is defined or adjusted as a shared component or convention before it is used as a module-specific solution
+
+#### Scenario: No independent module visual system
+
+- **WHEN** the Vehicles redesign is reviewed
+- **THEN** it does not contain colors, hierarchy, layouts, badges, empty states, forms, or controls that contradict or duplicate the shared design system

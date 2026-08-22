@@ -48,7 +48,13 @@ export default async function EditarVehiculoPage({
         </Link>
       </PageHeader>
 
-      <VehicleForm entry={vehicle} makes={makes} statuses={statuses} initialModels={initialModels} />
+      <VehicleForm
+        entry={vehicle}
+        makes={makes}
+        statuses={statuses}
+        initialModels={initialModels}
+        cancelHref={`/vehiculos/${vehicle.code}`}
+      />
     </div>
   )
 }

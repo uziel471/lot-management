@@ -1,9 +1,12 @@
 "use client"
 
+import Link from "next/link"
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 
+import { FormSection } from "@/components/shared/form-section"
 import { SubmitButton } from "@/components/shared/submit-button"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
@@ -22,29 +25,23 @@ import {
 } from "../enums"
 import type { VehicleDetailDTO } from "../types"
 
-/** Formatea una fecha ISO a `yyyy-mm-dd` para un `<input type="date">`. */
 function toDateInputValue(iso: string | null | undefined): string {
   if (!iso) return ""
   return iso.slice(0, 10)
 }
 
-/**
- * Formulario de alta y edición, en una página completa —no en
- * diálogo—: veintitrés campos no caben legibles en un modal (ver
- * design.md, "El formulario se agrupa en secciones, no en pasos").
- * Las secciones van en `<details>`, con Identificación abierta y las
- * demás plegadas en el alta; todas abiertas en la edición.
- */
 export function VehicleForm({
   entry,
   makes,
   statuses,
   initialModels = [],
+  cancelHref,
 }: {
   entry?: VehicleDetailDTO
   makes: CatalogOption[]
   statuses: CatalogOption[]
   initialModels?: CatalogOption[]
+  cancelHref: string
 }) {
   const isEdit = Boolean(entry)
   const router = useRouter()
@@ -73,11 +70,32 @@ export function VehicleForm({
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
 
   return (
-    <form action={formAction} className="flex max-w-3xl flex-col gap-4">
+    <form action={formAction} className="flex max-w-5xl flex-col gap-6">
       {entry ? <input type="hidden" name="code" value={entry.code} /> : null}
 
-      <Section title="Identificación" open>
-        <div className="flex flex-col gap-1">
+      <div className="rounded-lg border bg-muted/30 p-4">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">
+              {isEdit
+                ? "Actualiza la información operativa del vehículo sin alterar su código."
+                : "Captura lo obligatorio primero y completa el resto cuando esté disponible."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Los campos marcados con <span className="text-destructive">*</span> son obligatorios.
+            </p>
+          </div>
+          <Field label="Código" className="md:justify-self-end">
+            <Input value={entry?.code ?? "Se asigna al guardar"} readOnly disabled />
+          </Field>
+        </div>
+      </div>
+
+      <FormSection
+        title="Identificación"
+        description="Datos mínimos para identificar la unidad y registrarla en inventario."
+      >
+        <div className="flex flex-col gap-1 md:col-span-2">
           <MakeModelSelect
             makes={makes}
             defaultMakeId={entry?.makeId}
@@ -123,9 +141,12 @@ export function VehicleForm({
         <Field label="Número de inventario" error={fieldErrors.stockNumber}>
           <Input name="stockNumber" defaultValue={entry?.stockNumber ?? ""} />
         </Field>
-      </Section>
+      </FormSection>
 
-      <Section title="Ficha técnica" open={isEdit}>
+      <FormSection
+        title="Ficha técnica"
+        description="Características físicas y mecánicas visibles durante la captura."
+      >
         <Field label="Versión / trim" error={fieldErrors.trim}>
           <Input name="trim" defaultValue={entry?.trim ?? ""} />
         </Field>
@@ -149,7 +170,7 @@ export function VehicleForm({
           <Input name="interiorColor" defaultValue={entry?.interiorColor ?? ""} />
         </Field>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 md:col-span-2">
           <Field label="Kilometraje" error={fieldErrors.mileage} className="flex-1">
             <Input name="mileage" type="number" min={0} defaultValue={entry?.mileage ?? ""} />
           </Field>
@@ -197,9 +218,9 @@ export function VehicleForm({
             ))}
           </Select>
         </Field>
-      </Section>
+      </FormSection>
 
-      <Section title="Título" open={isEdit}>
+      <FormSection title="Título" description="Situación documental del título de propiedad.">
         <Field label="Situación del título" error={fieldErrors.titleStatus}>
           <Select name="titleStatus" defaultValue={entry?.titleStatus ?? ""}>
             <option value="">Sin especificar</option>
@@ -215,18 +236,22 @@ export function VehicleForm({
           <Input name="titleNumber" defaultValue={entry?.titleNumber ?? ""} />
         </Field>
 
-        <label className="flex items-center gap-1.5 text-sm">
+        <div className="flex items-center gap-2 md:col-span-2">
           <input
+            id="title-in-hand"
             type="checkbox"
             name="titleInHand"
             defaultChecked={entry?.titleInHand ?? false}
-            className="size-3.5 accent-primary"
+            className="size-4 accent-primary"
           />
-          Título en poder del lote
-        </label>
-      </Section>
+          <Label htmlFor="title-in-hand">Título en poder del lote</Label>
+        </div>
+      </FormSection>
 
-      <Section title="Inventario y ubicación" open={isEdit}>
+      <FormSection
+        title="Inventario y ubicación"
+        description="Seguimiento operativo dentro del lote."
+      >
         <Field label="Fecha de publicación" error={fieldErrors.dateListed}>
           <Input name="dateListed" type="date" defaultValue={toDateInputValue(entry?.dateListed)} />
         </Field>
@@ -234,9 +259,9 @@ export function VehicleForm({
         <Field label="Ubicación en el lote" error={fieldErrors.lotLocation}>
           <Input name="lotLocation" defaultValue={entry?.lotLocation ?? ""} />
         </Field>
-      </Section>
+      </FormSection>
 
-      <Section title="Precio y notas" open={isEdit}>
+      <FormSection title="Precio y notas" description="Contexto comercial visible para el equipo.">
         <Field
           label="Precio de lista (USD)"
           error={fieldErrors.askingPrice}
@@ -251,38 +276,25 @@ export function VehicleForm({
           />
         </Field>
 
-        <Field label="Notas" error={fieldErrors.notes}>
+        <Field label="Notas" error={fieldErrors.notes} className="md:col-span-2">
           <Textarea name="notes" defaultValue={entry?.notes ?? ""} rows={3} />
         </Field>
-      </Section>
+      </FormSection>
 
       {state && !state.ok ? (
-        <p className="text-sm text-destructive" role="alert">
+        <div
+          className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          role="alert"
+        >
           {state.error}
-        </p>
+        </div>
       ) : null}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" render={<Link href={cancelHref}>Cancelar</Link>} />
         <SubmitButton>{isEdit ? "Guardar cambios" : "Registrar vehículo"}</SubmitButton>
       </div>
     </form>
-  )
-}
-
-function Section({
-  title,
-  open,
-  children,
-}: {
-  title: string
-  open?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <details open={open} className="rounded-lg border p-3">
-      <summary className="cursor-pointer text-sm font-semibold">{title}</summary>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">{children}</div>
-    </details>
   )
 }
 
@@ -302,7 +314,7 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <div className={`flex flex-col gap-1 ${className ?? ""}`}>
+    <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
       <Label>
         {label}
         {required ? <span className="text-destructive">*</span> : null}

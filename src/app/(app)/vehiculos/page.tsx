@@ -1,6 +1,8 @@
+import Link from "next/link"
 import { unauthorized } from "next/navigation"
 
 import { PageHeader } from "@/components/shared/page-header"
+import { Button } from "@/components/ui/button"
 import { verifySession } from "@/lib/auth/dal"
 import { VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { listActiveOptions } from "@/features/catalogs/queries"
@@ -30,7 +32,11 @@ export default async function VehiculosPage() {
       <PageHeader
         title="Vehículos"
         description="El inventario del lote. Un vehículo entra con lo que se sabe el día que llega y se completa después."
-      />
+      >
+        {VEHICLE_WRITE_ROLES.includes(user.role) ? (
+          <Button size="sm" render={<Link href="/vehiculos/nuevo">Nuevo vehículo</Link>} />
+        ) : null}
+      </PageHeader>
 
       <VehicleTable
         vehicles={vehicles}

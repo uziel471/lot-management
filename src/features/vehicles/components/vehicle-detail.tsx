@@ -1,9 +1,15 @@
 "use client"
 
-import { useActionState, useState } from "react"
 import Link from "next/link"
+import { useActionState, useState } from "react"
 
-import { Badge } from "@/components/ui/badge"
+import {
+  DetailGrid,
+  DetailItem,
+  DetailSection,
+} from "@/components/shared/detail-section"
+import { StatusBadge } from "@/components/shared/status-badge"
+import { SubmitButton } from "@/components/shared/submit-button"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,10 +21,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Select } from "@/components/ui/select"
-import { SubmitButton } from "@/components/shared/submit-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import type { CatalogOption } from "@/features/catalogs/types"
@@ -36,11 +41,6 @@ import {
 import type { VehicleDetailDTO } from "../types"
 import { StatusHistory } from "./status-history"
 
-/**
- * Ficha de lectura del vehículo, con acciones puntuales para cambiar
- * estatus y precio —las dos cosas que cambian a menudo— y el
- * señalamiento de lo que falta por capturar (ver design.md).
- */
 export function VehicleDetail({
   vehicle,
   statuses,
@@ -56,33 +56,36 @@ export function VehicleDetail({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{vehicle.description}</h1>
-            <span className="font-mono text-xs text-muted-foreground">{vehicle.code}</span>
+      <div className="rounded-lg border p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">{vehicle.description}</h1>
+              <span className="font-mono text-xs text-muted-foreground">{vehicle.code}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StatusBadge tone={statusTone(vehicle.statusName)}>{vehicle.statusName}</StatusBadge>
+              {vehicle.isVoided ? <StatusBadge tone="destructive">Anulado</StatusBadge> : null}
+              <StatusBadge tone={vehicle.titleInHand ? "success" : "muted"}>
+                {vehicle.titleInHand ? "Título en mano" : "Sin título en mano"}
+              </StatusBadge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Código, estatus y datos clave de operación para seguimiento diario.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge>{vehicle.statusName}</Badge>
-            {vehicle.isVoided ? <Badge variant="destructive">Anulado</Badge> : null}
-            {vehicle.titleInHand ? (
-              <Badge variant="secondary">Título en mano</Badge>
-            ) : (
-              <Badge variant="muted">Sin título en mano</Badge>
-            )}
-          </div>
-        </div>
 
-        {canWrite && !vehicle.isVoided ? (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link href={`/vehiculos/${vehicle.code}/editar`}>Editar</Link>}
-            />
-            {canVoid ? <VoidVehicleDialog code={vehicle.code} /> : null}
-          </div>
-        ) : null}
+          {canWrite && !vehicle.isVoided ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link href={`/vehiculos/${vehicle.code}/editar`}>Editar</Link>}
+              />
+              {canVoid ? <VoidVehicleDialog code={vehicle.code} /> : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {vehicle.isVoided ? (
@@ -105,81 +108,135 @@ export function VehicleDetail({
         </div>
       ) : null}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold">Ficha</h2>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-            <Detail label="Año" value={String(vehicle.year)} />
-            <Detail label="VIN" value={vehicle.vin ?? "—"} mono />
-            <Detail label="Número de inventario" value={vehicle.stockNumber ?? "—"} mono />
-            <Detail label="Días en inventario" value={String(vehicle.daysInInventory)} />
-            <Detail label="Versión / trim" value={vehicle.trim ?? "—"} />
-            <Detail
-              label="Estilo de carrocería"
-              value={vehicle.bodyStyle ? BODY_STYLE_LABELS[vehicle.bodyStyle] : "—"}
-            />
-            <Detail label="Color exterior" value={vehicle.exteriorColor ?? "—"} />
-            <Detail label="Color interior" value={vehicle.interiorColor ?? "—"} />
-            <Detail
-              label="Kilometraje"
-              value={
-                vehicle.mileage !== null
-                  ? `${vehicle.mileage.toLocaleString("es-MX")} ${
-                      vehicle.mileageUnit ? MILEAGE_UNIT_LABELS[vehicle.mileageUnit] : ""
-                    }`
-                  : "—"
-              }
-            />
-            <Detail
-              label="Transmisión"
-              value={vehicle.transmission ? TRANSMISSION_LABELS[vehicle.transmission] : "—"}
-            />
-            <Detail label="Combustible" value={vehicle.fuelType ? FUEL_TYPE_LABELS[vehicle.fuelType] : "—"} />
-            <Detail
-              label="Tracción"
-              value={vehicle.drivetrain ? DRIVETRAIN_LABELS[vehicle.drivetrain] : "—"}
-            />
-            <Detail
-              label="Situación del título"
-              value={vehicle.titleStatus ? TITLE_STATUS_LABELS[vehicle.titleStatus] : "—"}
-            />
-            <Detail label="Número de título" value={vehicle.titleNumber ?? "—"} />
-            <Detail
-              label="Fecha de recepción"
-              value={new Date(vehicle.dateReceived).toLocaleDateString("es-MX")}
-            />
-            <Detail
-              label="Fecha de publicación"
-              value={vehicle.dateListed ? new Date(vehicle.dateListed).toLocaleDateString("es-MX") : "—"}
-            />
-            <Detail label="Ubicación en el lote" value={vehicle.lotLocation ?? "—"} />
-          </dl>
-          {vehicle.notes ? (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Notas</p>
-              <p className="text-sm whitespace-pre-wrap">{vehicle.notes}</p>
-            </div>
-          ) : null}
-        </section>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        <div className="flex flex-col gap-6">
+          <DetailSection
+            title="Identidad"
+            description="Datos de identificación y permanencia en inventario."
+          >
+            <DetailGrid>
+              <DetailItem label="Año" value={String(vehicle.year)} />
+              <DetailItem label="VIN" value={vehicle.vin} mono />
+              <DetailItem label="Número de inventario" value={vehicle.stockNumber} mono />
+              <DetailItem label="Días en inventario" value={String(vehicle.daysInInventory)} />
+              <DetailItem
+                label="Fecha de recepción"
+                value={new Date(vehicle.dateReceived).toLocaleDateString("es-MX")}
+              />
+              <DetailItem
+                label="Fecha de publicación"
+                value={
+                  vehicle.dateListed
+                    ? new Date(vehicle.dateListed).toLocaleDateString("es-MX")
+                    : undefined
+                }
+              />
+              <DetailItem label="Ubicación en el lote" value={vehicle.lotLocation} />
+            </DetailGrid>
+          </DetailSection>
 
-        <section className="flex flex-col gap-4">
+          <DetailSection
+            title="Ficha técnica"
+            description="Características visibles y datos técnicos capturados."
+          >
+            <DetailGrid>
+              <DetailItem label="Versión / trim" value={vehicle.trim} />
+              <DetailItem
+                label="Estilo de carrocería"
+                value={vehicle.bodyStyle ? BODY_STYLE_LABELS[vehicle.bodyStyle] : undefined}
+              />
+              <DetailItem label="Color exterior" value={vehicle.exteriorColor} />
+              <DetailItem label="Color interior" value={vehicle.interiorColor} />
+              <DetailItem
+                label="Transmisión"
+                value={vehicle.transmission ? TRANSMISSION_LABELS[vehicle.transmission] : undefined}
+              />
+              <DetailItem
+                label="Combustible"
+                value={vehicle.fuelType ? FUEL_TYPE_LABELS[vehicle.fuelType] : undefined}
+              />
+              <DetailItem
+                label="Tracción"
+                value={vehicle.drivetrain ? DRIVETRAIN_LABELS[vehicle.drivetrain] : undefined}
+              />
+            </DetailGrid>
+          </DetailSection>
+
+          <DetailSection
+            title="Kilometraje y título"
+            description="Datos de uso y documentación de la unidad."
+          >
+            <DetailGrid>
+              <DetailItem
+                label="Kilometraje"
+                value={
+                  vehicle.mileage !== null
+                    ? `${vehicle.mileage.toLocaleString("es-MX")} ${
+                        vehicle.mileageUnit ? MILEAGE_UNIT_LABELS[vehicle.mileageUnit] : ""
+                      }`
+                    : undefined
+                }
+              />
+              <DetailItem
+                label="Situación del título"
+                value={vehicle.titleStatus ? TITLE_STATUS_LABELS[vehicle.titleStatus] : undefined}
+              />
+              <DetailItem label="Número de título" value={vehicle.titleNumber} />
+              <DetailItem label="Título en poder del lote" value={vehicle.titleInHand ? "Sí" : "No"} />
+            </DetailGrid>
+          </DetailSection>
+
+          <DetailSection
+            title="Notas"
+            description="Observaciones operativas visibles para el equipo."
+          >
+            <p className="text-sm whitespace-pre-wrap">{vehicle.notes ?? "Sin notas registradas."}</p>
+          </DetailSection>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <DetailSection
+            title="Precio y estatus"
+            description="Acciones frecuentes resguardadas por permisos y estado."
+          >
+            <div className="grid gap-4">
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-muted-foreground">Precio de lista</p>
+                <p className="mt-1 text-lg font-semibold">
+                  {vehicle.askingPrice ? formatMoney(vehicle.askingPrice) : "Sin precio"}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-muted-foreground">Estatus actual</p>
+                <div className="mt-2">
+                  <StatusBadge tone={statusTone(vehicle.statusName)}>{vehicle.statusName}</StatusBadge>
+                </div>
+              </div>
+            </div>
+          </DetailSection>
+
           {canWrite && !vehicle.isVoided ? (
             <>
-              <ChangeStatusForm code={vehicle.code} currentStatusId={vehicle.statusId} statuses={statuses} />
-              <ChangePriceForm code={vehicle.code} currentAmount={vehicle.askingPrice?.amount ?? null} />
+              <ChangeStatusForm
+                code={vehicle.code}
+                currentStatusId={vehicle.statusId}
+                statuses={statuses}
+              />
+              <ChangePriceForm
+                code={vehicle.code}
+                currentAmount={vehicle.askingPrice?.amount ?? null}
+              />
             </>
-          ) : (
-            <Detail
-              label="Precio de lista"
-              value={vehicle.askingPrice ? formatMoney(vehicle.askingPrice) : "Sin precio"}
-            />
-          )}
+          ) : null}
 
-          <div>
-            <h2 className="mb-2 text-sm font-semibold">Historial de estatus</h2>
+          <DetailSection
+            title="Historial de estatus"
+            description="Cambios registrados en orden cronológico."
+          >
             <StatusHistory entries={vehicle.statusHistory} />
-          </div>
-        </section>
+          </DetailSection>
+        </div>
       </div>
     </div>
   )
@@ -192,15 +249,6 @@ function missingFields(vehicle: VehicleDetailDTO): string[] {
   if (!vehicle.askingPrice) missing.push("precio de lista")
   if (!vehicle.stockNumber) missing.push("número de inventario")
   return missing
-}
-
-function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={mono ? "font-mono" : undefined}>{value}</dd>
-    </>
-  )
 }
 
 function ChangeStatusForm({
@@ -224,8 +272,8 @@ function ChangeStatusForm({
   )
 
   return (
-    <form action={formAction} className="flex items-end gap-2 rounded-lg border p-3">
-      <div className="flex flex-1 flex-col gap-1">
+    <form action={formAction} className="rounded-lg border p-4">
+      <div className="grid gap-3">
         <Label htmlFor="change-status">Cambiar estatus</Label>
         <Select id="change-status" name="statusId" defaultValue={currentStatusId}>
           {statuses.map((status) => (
@@ -234,9 +282,11 @@ function ChangeStatusForm({
             </option>
           ))}
         </Select>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {state && !state.ok ? <p className="text-xs text-destructive">{state.error}</p> : <span />}
+          <SubmitButton size="sm">Guardar estatus</SubmitButton>
+        </div>
       </div>
-      <SubmitButton size="sm">Guardar</SubmitButton>
-      {state && !state.ok ? <p className="text-xs text-destructive">{state.error}</p> : null}
     </form>
   )
 }
@@ -254,8 +304,8 @@ function ChangePriceForm({ code, currentAmount }: { code: string; currentAmount:
   )
 
   return (
-    <form action={formAction} className="flex items-end gap-2 rounded-lg border p-3">
-      <div className="flex flex-1 flex-col gap-1">
+    <form action={formAction} className="rounded-lg border p-4">
+      <div className="grid gap-3">
         <Label htmlFor="change-price">Cambiar precio de lista (USD)</Label>
         <Input
           id="change-price"
@@ -265,9 +315,11 @@ function ChangePriceForm({ code, currentAmount }: { code: string; currentAmount:
           step="0.01"
           defaultValue={currentAmount !== null ? currentAmount / 100 : ""}
         />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {state && !state.ok ? <p className="text-xs text-destructive">{state.error}</p> : <span />}
+          <SubmitButton size="sm">Guardar precio</SubmitButton>
+        </div>
       </div>
-      <SubmitButton size="sm">Guardar</SubmitButton>
-      {state && !state.ok ? <p className="text-xs text-destructive">{state.error}</p> : null}
     </form>
   )
 }
@@ -288,7 +340,13 @@ function VoidVehicleDialog({ code }: { code: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="destructive" size="sm">Anular</Button>} />
+      <DialogTrigger
+        render={
+          <Button variant="destructive" size="sm">
+            Anular
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Anular vehículo</DialogTitle>
@@ -319,4 +377,12 @@ function VoidVehicleDialog({ code }: { code: string }) {
       </DialogContent>
     </Dialog>
   )
+}
+
+function statusTone(statusName: string) {
+  const normalized = statusName.toLowerCase()
+  if (normalized.includes("vend")) return "success" as const
+  if (normalized.includes("apart") || normalized.includes("proceso")) return "warning" as const
+  if (normalized.includes("anulad")) return "destructive" as const
+  return "neutral" as const
 }

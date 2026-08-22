@@ -27,7 +27,7 @@ export default async function NuevoVehiculoPage() {
         </Link>
       </PageHeader>
 
-      <VehicleForm makes={makes} statuses={statuses} />
+      <VehicleForm makes={makes} statuses={statuses} cancelHref="/vehiculos" />
     </div>
   )
 }
