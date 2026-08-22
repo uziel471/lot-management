@@ -2,15 +2,22 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { verifySession } from "@/lib/auth/dal"
-import { PURCHASE_WRITE_ROLES, VEHICLE_VOID_ROLES, VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
+import {
+  EXPENSE_WRITE_ROLES,
+  PURCHASE_WRITE_ROLES,
+  REPAIR_WRITE_ROLES,
+  VEHICLE_VOID_ROLES,
+  VEHICLE_WRITE_ROLES,
+} from "@/lib/auth/permissions"
 import { listActiveOptions } from "@/features/catalogs/queries"
+import { VehicleExpenseSummary } from "@/features/expenses/components/vehicle-expense-summary"
+import { getVehicleExpenseSummary } from "@/features/expenses/queries"
 import { VehicleDetail } from "@/features/vehicles/components/vehicle-detail"
 import { getVehicleByCode } from "@/features/vehicles/queries"
 import { VehicleAcquisitionCost } from "@/features/purchases/components/vehicle-acquisition-cost"
 import { getVehicleAcquisitionCost, listPurchasesByVehicle } from "@/features/purchases/queries"
 import { VehicleRepairSummary } from "@/features/repairs/components/vehicle-repair-summary"
 import { getVehicleRepairSummary } from "@/features/repairs/queries"
-import { REPAIR_WRITE_ROLES } from "@/lib/auth/permissions"
 
 /**
  * Ficha de detalle de un vehículo: lectura, con acciones puntuales.
@@ -36,11 +43,12 @@ export default async function VehiculoDetallePage({
     notFound()
   }
 
-  const [statuses, acquisitionCost, purchases, repairSummary] = await Promise.all([
+  const [statuses, acquisitionCost, purchases, repairSummary, expenseSummary] = await Promise.all([
     listActiveOptions("vehicleStatuses"),
     getVehicleAcquisitionCost(vehicle.id),
     listPurchasesByVehicle(vehicle.id),
     getVehicleRepairSummary(vehicle.id),
+    getVehicleExpenseSummary(vehicle.id),
   ])
 
   return (
@@ -72,6 +80,15 @@ export default async function VehiculoDetallePage({
           vehicleCode={vehicle.code}
           summary={repairSummary}
           canWrite={REPAIR_WRITE_ROLES.includes(user.role)}
+        />
+      ) : null}
+
+      {expenseSummary ? (
+        <VehicleExpenseSummary
+          vehicleId={vehicle.id}
+          vehicleCode={vehicle.code}
+          summary={expenseSummary}
+          canWrite={EXPENSE_WRITE_ROLES.includes(user.role)}
         />
       ) : null}
     </div>

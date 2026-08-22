@@ -42,6 +42,11 @@ const statement = {
    * registro abierto después de capturarla.
    */
   repair: ["create", "transition", "complete", "cancel", "void"],
+  /**
+   * Gastos: alta para `capturista` y `admin`; anulación reservada a
+   * `admin`. No hay edición: el gasto es inmutable después del alta.
+   */
+  expense: ["create", "void"],
 } as const
 
 export const ac = createAccessControl(statement)
@@ -54,6 +59,7 @@ export const roles = {
     vehicle: ["create", "update", "void"],
     purchase: ["create", "void"],
     repair: ["create", "transition", "complete", "cancel", "void"],
+    expense: ["create", "void"],
   }),
   capturista: ac.newRole({
     user: [],
@@ -62,6 +68,7 @@ export const roles = {
     vehicle: ["create", "update"],
     purchase: ["create"],
     repair: ["create", "transition", "complete", "cancel"],
+    expense: ["create"],
   }),
   lectura: ac.newRole({
     user: [],
@@ -70,6 +77,7 @@ export const roles = {
     repair: [],
     vehicle: [],
     purchase: [],
+    expense: [],
   }),
 } satisfies Record<Role, ReturnType<typeof ac.newRole>>
 
@@ -109,3 +117,11 @@ export const PURCHASE_VOID_ROLES: readonly Role[] = ["admin"]
 export const REPAIR_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
 export const REPAIR_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
 export const REPAIR_VOID_ROLES: readonly Role[] = ["admin"]
+
+/**
+ * Los roles de gastos: `lectura` solo consulta, `capturista` y
+ * `admin` registran, y anular queda reservado a `admin`.
+ */
+export const EXPENSE_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
+export const EXPENSE_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
+export const EXPENSE_VOID_ROLES: readonly Role[] = ["admin"]

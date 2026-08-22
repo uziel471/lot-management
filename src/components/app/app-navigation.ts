@@ -1,6 +1,14 @@
 import type { Role } from "@/types/role"
 
-export type AppNavIcon = "dashboard" | "vehicles" | "purchases" | "repairs" | "catalogs" | "users" | "account"
+export type AppNavIcon =
+  | "dashboard"
+  | "vehicles"
+  | "purchases"
+  | "repairs"
+  | "expenses"
+  | "catalogs"
+  | "users"
+  | "account"
 
 export type AppNavigationItem = {
   href: string
@@ -15,6 +23,7 @@ const APP_NAVIGATION: AppNavigationItem[] = [
   { href: "/vehiculos", label: "Vehiculos", icon: "vehicles", match: "prefix" },
   { href: "/compras", label: "Compras", icon: "purchases", match: "prefix" },
   { href: "/reparaciones", label: "Reparaciones", icon: "repairs", match: "prefix" },
+  { href: "/gastos", label: "Gastos", icon: "expenses", match: "prefix" },
   { href: "/catalogos", label: "Catalogos", icon: "catalogs", match: "prefix" },
   { href: "/usuarios", label: "Usuarios", icon: "users", adminOnly: true, match: "prefix" },
   { href: "/cuenta", label: "Mi cuenta", icon: "account", match: "prefix" },
