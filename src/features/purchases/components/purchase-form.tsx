@@ -1,10 +1,13 @@
 "use client"
 
 import { useActionState, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+import { FormSection } from "@/components/shared/form-section"
 import { MoneyInput } from "@/components/shared/money-input"
 import { SubmitButton } from "@/components/shared/submit-button"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
@@ -41,11 +44,13 @@ export function PurchaseForm({
   vendors,
   defaultVehicleId,
   correctionTargets = [],
+  cancelHref,
 }: {
   vehicles: VehicleOption[]
   vendors: CatalogOption[]
   defaultVehicleId?: string
   correctionTargets?: VoidedPurchaseOptionDTO[]
+  cancelHref: string
 }) {
   const router = useRouter()
   // Se genera una sola vez, en el montaje: es el token que protege
@@ -103,10 +108,13 @@ export function PurchaseForm({
   }
 
   return (
-    <form action={formAction} className="flex max-w-3xl flex-col gap-4">
+    <form action={formAction} className="flex max-w-5xl flex-col gap-6">
       <input type="hidden" name="submissionToken" value={submissionToken} />
 
-      <Section title="Identificación">
+      <FormSection
+        title="Identificación"
+        description="Captura la unidad, el proveedor y el contexto base del registro."
+      >
         <Field label="Vehículo" required error={fieldErrors.vehicleId}>
           <Select name="vehicleId" defaultValue={defaultVehicleId ?? ""} required>
             <option value="">Selecciona un vehículo</option>
@@ -176,9 +184,12 @@ export function PurchaseForm({
             </Select>
           </Field>
         ) : null}
-      </Section>
+      </FormSection>
 
-      <Section title="Moneda">
+      <FormSection
+        title="Moneda"
+        description="El total en USD se calcula con las mismas reglas que validan y guardan la compra."
+      >
         <Field label="Moneda" required error={fieldErrors.currency}>
           <Select
             name="currency"
@@ -205,9 +216,13 @@ export function PurchaseForm({
             required
           />
         </Field>
-      </Section>
+      </FormSection>
 
-      <Section title="Componentes del costo">
+      <FormSection
+        title="Componentes del costo"
+        description="Incluye solo costos de adquisición de la unidad. Reparaciones y gastos van en sus módulos."
+        contentClassName="grid gap-4 md:grid-cols-2"
+      >
         <p className="sm:col-span-2 text-xs text-muted-foreground">
           Solo costos de adquisición de la unidad: precio, comisiones de la operación, traslado al
           lote, trámites de título e importación. El reacondicionamiento se registra como
@@ -238,9 +253,12 @@ export function PurchaseForm({
             </div>
           ) : null}
         </div>
-      </Section>
+      </FormSection>
 
-      <Section title="Pago y referencias">
+      <FormSection
+        title="Pago y referencias"
+        description="Datos operativos para conciliar la compra y ubicar su soporte documental."
+      >
         <Field label="Forma de pago" error={fieldErrors.paymentMethod}>
           <Select name="paymentMethod" defaultValue="">
             <option value="">Sin especificar</option>
@@ -259,33 +277,29 @@ export function PurchaseForm({
         <Field label="Número de lote" error={fieldErrors.lotNumber}>
           <Input name="lotNumber" />
         </Field>
-      </Section>
+      </FormSection>
 
-      <Section title="Notas">
-        <Field label="Notas" error={fieldErrors.notes} className="sm:col-span-2">
+      <FormSection
+        title="Notas"
+        description="Observaciones visibles para el equipo sin alterar el comportamiento financiero."
+        contentClassName="grid gap-4"
+      >
+        <Field label="Notas" error={fieldErrors.notes}>
           <Textarea name="notes" rows={3} />
         </Field>
-      </Section>
+      </FormSection>
 
       {state && !state.ok ? (
-        <p className="text-sm text-destructive" role="alert">
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive" role="alert">
           {state.error}
-        </p>
+        </div>
       ) : null}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" render={<Link href={cancelHref}>Cancelar</Link>} />
         <SubmitButton>Registrar compra</SubmitButton>
       </div>
     </form>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border p-3">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">{children}</div>
-    </div>
   )
 }
 

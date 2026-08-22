@@ -18,25 +18,27 @@ import { listVehicleOptions } from "@/features/vehicles/queries"
 export default async function NuevaCompraPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vehicleId?: string }>
+  searchParams: Promise<{ vehicleId?: string; returnTo?: string }>
 }) {
   const { user } = await verifySession()
   if (!PURCHASE_WRITE_ROLES.includes(user.role)) {
     unauthorized()
   }
 
-  const { vehicleId } = await searchParams
+  const { vehicleId, returnTo } = await searchParams
 
   const [vehicles, vendors, correctionTargets] = await Promise.all([
     listVehicleOptions(),
     listActiveOptions("vendors"),
     vehicleId ? listVoidedPurchasesByVehicle(vehicleId) : Promise.resolve([]),
   ])
+  const selectedVehicle = vehicleId ? vehicles.find((vehicle) => vehicle.id === vehicleId) : undefined
+  const cancelHref = returnTo ?? (selectedVehicle ? `/vehiculos/${selectedVehicle.code}` : "/compras")
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Nueva compra" description="El sistema asigna el código al guardar.">
-        <Link href="/compras" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href={cancelHref} className="text-sm text-muted-foreground hover:text-foreground">
           ← Compras
         </Link>
       </PageHeader>
@@ -46,6 +48,7 @@ export default async function NuevaCompraPage({
         vendors={vendors}
         defaultVehicleId={vehicleId}
         correctionTargets={correctionTargets}
+        cancelHref={cancelHref}
       />
     </div>
   )

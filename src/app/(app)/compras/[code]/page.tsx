@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { PageHeader } from "@/components/shared/page-header"
 import { verifySession } from "@/lib/auth/dal"
 import { PURCHASE_VOID_ROLES } from "@/lib/auth/permissions"
 import { PurchaseDetail } from "@/features/purchases/components/purchase-detail"
@@ -22,9 +23,14 @@ export default async function CompraDetallePage({
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/compras" className="text-sm text-muted-foreground hover:text-foreground">
-        ← Compras
-      </Link>
+      <PageHeader
+        title={purchase.code}
+        description="Registro financiero inmutable. Si una compra necesita corregirse, primero se anula y luego se captura la corrección."
+      >
+        <Link href="/compras" className="text-sm text-muted-foreground hover:text-foreground">
+          ← Compras
+        </Link>
+      </PageHeader>
 
       <PurchaseDetail purchase={purchase} canVoid={PURCHASE_VOID_ROLES.includes(user.role)} />
     </div>

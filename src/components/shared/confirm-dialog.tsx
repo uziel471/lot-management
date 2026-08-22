@@ -24,6 +24,7 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
+  body,
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
   variant = "default",
@@ -32,17 +33,18 @@ export function ConfirmDialog({
   trigger: React.ReactElement
   title: string
   description?: string
+  body?: React.ReactNode
   confirmLabel?: string
   cancelLabel?: string
   variant?: React.ComponentProps<typeof Button>["variant"]
-  onConfirm: () => void | Promise<void>
+  onConfirm: (formData?: FormData) => void | Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  function handleConfirm() {
+  function handleConfirm(formData?: FormData) {
     startTransition(async () => {
-      await onConfirm()
+      await onConfirm(formData)
       setOpen(false)
     })
   }
@@ -51,22 +53,52 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger} />
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose
-            render={
-              <Button variant="outline" size="sm" disabled={pending}>
-                {cancelLabel}
+        {body ? (
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              handleConfirm(new FormData(event.currentTarget))
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{title}</DialogTitle>
+              {description ? <DialogDescription>{description}</DialogDescription> : null}
+            </DialogHeader>
+            {body}
+            <DialogFooter>
+              <DialogClose
+                render={
+                  <Button variant="outline" size="sm" disabled={pending} type="button">
+                    {cancelLabel}
+                  </Button>
+                }
+              />
+              <Button variant={variant} size="sm" disabled={pending} type="submit">
+                {pending ? "Aplicando…" : confirmLabel}
               </Button>
-            }
-          />
-          <Button variant={variant} size="sm" disabled={pending} onClick={handleConfirm}>
-            {pending ? "Aplicando…" : confirmLabel}
-          </Button>
-        </DialogFooter>
+            </DialogFooter>
+          </form>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>{title}</DialogTitle>
+              {description ? <DialogDescription>{description}</DialogDescription> : null}
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose
+                render={
+                  <Button variant="outline" size="sm" disabled={pending} type="button">
+                    {cancelLabel}
+                  </Button>
+                }
+              />
+              <Button variant={variant} size="sm" disabled={pending} onClick={() => handleConfirm()}>
+                {pending ? "Aplicando…" : confirmLabel}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )

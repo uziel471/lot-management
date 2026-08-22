@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { verifySession } from "@/lib/auth/dal"
-import { VEHICLE_VOID_ROLES, VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
+import { PURCHASE_WRITE_ROLES, VEHICLE_VOID_ROLES, VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { listActiveOptions } from "@/features/catalogs/queries"
 import { VehicleDetail } from "@/features/vehicles/components/vehicle-detail"
 import { getVehicleByCode } from "@/features/vehicles/queries"
@@ -55,8 +55,10 @@ export default async function VehiculoDetallePage({
       {acquisitionCost ? (
         <VehicleAcquisitionCost
           vehicleId={vehicle.id}
+          vehicleCode={vehicle.code}
           cost={acquisitionCost}
           purchases={purchases ?? []}
+          canWrite={PURCHASE_WRITE_ROLES.includes(user.role)}
         />
       ) : null}
     </div>

@@ -35,7 +35,10 @@ export function DataTable<T>({
   rows,
   getRowId,
   getSearchText,
+  searchValue,
+  onSearchValueChange,
   filterPlaceholder = "Buscar…",
+  searchInputClassName,
   emptyTitle = "Sin resultados",
   emptyDescription,
   emptyAction,
@@ -44,6 +47,8 @@ export function DataTable<T>({
   filteredEmptyAction,
   hasActiveFilters = false,
   toolbar,
+  summary,
+  footer,
   rowActions,
   rowClassName,
 }: {
@@ -51,7 +56,10 @@ export function DataTable<T>({
   rows: T[]
   getRowId: (row: T) => string
   getSearchText?: (row: T) => string
+  searchValue?: string
+  onSearchValueChange?: (value: string) => void
   filterPlaceholder?: string
+  searchInputClassName?: string
   emptyTitle?: string
   emptyDescription?: string
   emptyAction?: React.ReactNode
@@ -60,10 +68,13 @@ export function DataTable<T>({
   filteredEmptyAction?: React.ReactNode
   hasActiveFilters?: boolean
   toolbar?: React.ReactNode
+  summary?: React.ReactNode
+  footer?: React.ReactNode
   rowActions?: (row: T) => React.ReactNode
   rowClassName?: (row: T) => string | undefined
 }) {
-  const [filter, setFilter] = useState("")
+  const [internalFilter, setInternalFilter] = useState("")
+  const filter = searchValue ?? internalFilter
 
   const visibleRows = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -72,22 +83,33 @@ export function DataTable<T>({
   }, [filter, rows, getSearchText])
   const isFiltered = hasActiveFilters || Boolean(filter.trim())
 
+  function handleFilterChange(value: string) {
+    if (onSearchValueChange) {
+      onSearchValueChange(value)
+      return
+    }
+
+    setInternalFilter(value)
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {getSearchText ? (
           <Input
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
+            onChange={(event) => handleFilterChange(event.target.value)}
             placeholder={filterPlaceholder}
             aria-label={filterPlaceholder}
-            className="max-w-64"
+            className={cn("max-w-64", searchInputClassName)}
           />
         ) : (
           <span />
         )}
         {toolbar}
       </div>
+
+      {summary ? <div>{summary}</div> : null}
 
       {visibleRows.length === 0 ? (
         <EmptyState
@@ -126,6 +148,8 @@ export function DataTable<T>({
           </Table>
         </div>
       )}
+
+      {footer ? <div>{footer}</div> : null}
 
       <p className="text-xs text-muted-foreground">
         {visibleRows.length} de {rows.length} {rows.length === 1 ? "registro" : "registros"}

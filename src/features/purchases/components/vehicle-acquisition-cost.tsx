@@ -1,6 +1,9 @@
 import Link from "next/link"
 
-import { Badge } from "@/components/ui/badge"
+import { DetailSection } from "@/components/shared/detail-section"
+import { EmptyState } from "@/components/shared/empty-state"
+import { StatusBadge } from "@/components/shared/status-badge"
+import { Button } from "@/components/ui/button"
 import { formatMoney } from "@/lib/money"
 import { COST_COMPONENTS } from "../enums"
 import type { PurchaseListItemDTO, VehicleAcquisitionCostDTO } from "../types"
@@ -16,63 +19,92 @@ import type { PurchaseListItemDTO, VehicleAcquisitionCostDTO } from "../types"
  */
 export function VehicleAcquisitionCost({
   vehicleId,
+  vehicleCode,
   cost,
   purchases,
+  canWrite,
 }: {
   vehicleId: string
+  vehicleCode: string
   cost: VehicleAcquisitionCostDTO
   purchases: PurchaseListItemDTO[]
+  canWrite: boolean
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Costo de adquisición</h2>
-        <span className="text-lg font-semibold">{formatMoney(cost.total)}</span>
+    <DetailSection
+      title="Costo de adquisición"
+      description="Total acumulado de compras vigentes de esta unidad, sin mezclar reparaciones ni otros gastos."
+      actions={
+        canWrite ? (
+        <Button
+          variant="outline"
+          size="sm"
+          render={<Link href={`/compras/nueva?vehicleId=${vehicleId}&returnTo=/vehiculos/${vehicleCode}`}>Registrar compra</Link>}
+        />
+        ) : null
+      }
+    >
+      <div className="grid gap-4">
+        <div className="rounded-lg border p-4">
+          <p className="text-xs font-medium text-muted-foreground">Total vigente en USD</p>
+          <p className="mt-1 text-lg font-semibold">{formatMoney(cost.total)}</p>
+        </div>
+
+        {cost.purchaseCount === 0 ? (
+          <EmptyState
+            title="Sin compras registradas"
+            description="Todavía no hay compras activas para esta unidad, así que el costo de adquisición permanece en cero."
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <tbody>
+                  {COST_COMPONENTS.map((component) => (
+                    <tr key={component.key} className="border-b last:border-0">
+                      <td className="px-4 py-2 text-muted-foreground">{component.label}</td>
+                      <td className="px-4 py-2 text-right">{formatMoney(cost.components[component.key])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="rounded-lg border">
+              <div className="border-b px-4 py-3">
+                <p className="text-sm font-medium">Compras relacionadas</p>
+              </div>
+              <div className="divide-y">
+                {purchases.map((purchase) => (
+                  <Link
+                    key={purchase.id}
+                    href={`/compras/${purchase.code}`}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs">{purchase.code}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {purchase.isVoided ? (
+                          <StatusBadge tone="destructive">Anulada</StatusBadge>
+                        ) : (
+                          <StatusBadge tone="success">Vigente</StatusBadge>
+                        )}
+                        <span className="text-xs text-muted-foreground">{purchase.purchaseDate.slice(0, 10)}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{formatMoney(purchase.totalUsd)}</p>
+                      {purchase.isVoided ? (
+                        <p className="text-xs text-muted-foreground">Excluida del total vigente</p>
+                      ) : null}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
-
-      {cost.purchaseCount === 0 ? (
-        <p className="text-sm text-muted-foreground">Todavía no tiene compras registradas.</p>
-      ) : (
-        <>
-          <table className="w-full text-xs">
-            <tbody>
-              {COST_COMPONENTS.map((component) => (
-                <tr key={component.key} className="border-b last:border-0">
-                  <td className="py-1 text-muted-foreground">{component.label}</td>
-                  <td className="py-1 text-right">{formatMoney(cost.components[component.key])}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="flex flex-col gap-1">
-            {purchases.map((purchase) => (
-              <Link
-                key={purchase.id}
-                href={`/compras/${purchase.code}`}
-                className="flex items-center justify-between rounded-md border px-2 py-1.5 text-xs hover:bg-muted/50"
-              >
-                <span className="flex items-center gap-1.5">
-                  {purchase.code}
-                  {purchase.isVoided ? (
-                    <Badge variant="destructive" className="text-[10px]">
-                      Anulada
-                    </Badge>
-                  ) : null}
-                </span>
-                <span>{formatMoney(purchase.totalUsd)}</span>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
-
-      <Link
-        href={`/compras/nueva?vehicleId=${vehicleId}`}
-        className="text-xs text-muted-foreground hover:text-foreground"
-      >
-        + Registrar una compra
-      </Link>
-    </div>
+    </DetailSection>
   )
 }
