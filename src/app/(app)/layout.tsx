@@ -1,7 +1,9 @@
-import Link from "next/link"
 import { verifySession } from "@/lib/auth/dal"
 import { signOutAction } from "@/features/auth/actions"
-import { Button } from "@/components/ui/button"
+import { AppHeader } from "@/components/app/app-header"
+import { AppShell } from "@/components/app/app-shell"
+import { getAppNavigation } from "@/components/app/app-navigation"
+import { AppSidebar } from "@/components/app/app-sidebar"
 import { Toaster } from "@/components/ui/toast"
 
 /**
@@ -19,46 +21,24 @@ export const dynamic = "force-dynamic"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = await verifySession()
-  const isAdmin = user.role === "admin"
+  const navigationItems = getAppNavigation(user.role)
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-3">
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/dashboard" className="font-semibold">
-            LOTE VEHICULOS
-          </Link>
-          <Link href="/vehiculos" className="text-muted-foreground hover:text-foreground">
-            Vehículos
-          </Link>
-          <Link href="/compras" className="text-muted-foreground hover:text-foreground">
-            Compras
-          </Link>
-          <Link href="/catalogos" className="text-muted-foreground hover:text-foreground">
-            Catálogos
-          </Link>
-          {isAdmin ? (
-            <Link href="/usuarios" className="text-muted-foreground hover:text-foreground">
-              Usuarios
-            </Link>
-          ) : null}
-          <Link href="/cuenta" className="text-muted-foreground hover:text-foreground">
-            Mi cuenta
-          </Link>
-        </nav>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-muted-foreground">
-            {user.name} · {user.role}
-          </span>
-          <form action={signOutAction}>
-            <Button type="submit" variant="outline" size="sm">
-              Cerrar sesión
-            </Button>
-          </form>
-        </div>
-      </header>
-      <main className="flex-1 p-4">{children}</main>
+    <>
+      <AppShell
+        sidebar={<AppSidebar items={navigationItems} />}
+        header={
+          <AppHeader
+            items={navigationItems}
+            userName={user.name}
+            userRole={user.role}
+            signOutAction={signOutAction}
+          />
+        }
+      >
+        {children}
+      </AppShell>
       <Toaster />
-    </div>
+    </>
   )
 }

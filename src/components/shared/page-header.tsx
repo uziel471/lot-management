@@ -18,12 +18,12 @@ export function PageHeader({
   className?: string
 }) {
   return (
-    <div className={cn("flex flex-wrap items-end justify-between gap-3", className)}>
-      <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-wrap items-start justify-between gap-3 sm:items-end", className)}>
+      <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        {description ? <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
       </div>
-      {children ? <div className="flex items-center gap-2">{children}</div> : null}
+      {children ? <div className="flex flex-wrap items-center justify-end gap-2">{children}</div> : null}
     </div>
   )
 }
