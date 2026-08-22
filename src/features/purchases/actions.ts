@@ -11,6 +11,7 @@ import type { ActionResult } from "@/types/action-result"
 import { Purchase } from "@/lib/db/models/purchase"
 import { Vehicle } from "@/lib/db/models/vehicle"
 import { Vendor } from "@/lib/db/models/vendor"
+import { getBlockingPaymentsForSources } from "@/features/payments/queries"
 import { requiresCorrectionTarget, requiresExistingPurchase, toReferenceKey } from "./domain"
 import { COST_COMPONENT_KEYS } from "./enums"
 import { purchaseCreateSchema, voidPurchaseSchema, type PurchaseInput } from "./schema"
@@ -252,8 +253,15 @@ export async function voidPurchase(code: string, input: unknown): Promise<Action
   try {
     await dbConnect()
 
-    const current = await Purchase.findOne({ code }).select({ vehicleId: 1 }).lean()
+    const current = await Purchase.findOne({ code }).select({ _id: 1, vehicleId: 1 }).lean()
     if (!current) return fail(NOT_FOUND)
+
+    const blocking = await getBlockingPaymentsForSources([{ type: "purchase", id: String(current._id) }])
+    const blockingPayments = blocking.get(`purchase:${current._id}`) ?? []
+    if (blockingPayments.length > 0) {
+      const codes = blockingPayments.map((payment) => payment.paymentCode).join(", ")
+      return fail(`No se puede anular la compra mientras tenga pagos activos (${codes}).`)
+    }
 
     const updated = await Purchase.findOneAndUpdate(
       { code, voidedAt: null },

@@ -48,6 +48,10 @@ export function VehicleAcquisitionCost({
         <div className="rounded-lg border p-4">
           <p className="text-xs font-medium text-muted-foreground">Total vigente en USD</p>
           <p className="mt-1 text-lg font-semibold">{formatMoney(cost.total)}</p>
+          <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+            <p>Pagado: {formatMoney(cost.paidUsd)}</p>
+            <p>Pendiente: {formatMoney(cost.pendingUsd)}</p>
+          </div>
         </div>
 
         {cost.purchaseCount === 0 ? (
@@ -94,6 +98,7 @@ export function VehicleAcquisitionCost({
                     </div>
                     <div className="text-right">
                       <p className="font-medium">{formatMoney(purchase.totalUsd)}</p>
+                      <p className="text-xs text-muted-foreground">Pendiente: {formatMoney(purchase.pendingUsd)}</p>
                       {purchase.isVoided ? (
                         <p className="text-xs text-muted-foreground">Excluida del total vigente</p>
                       ) : null}

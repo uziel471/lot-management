@@ -9,6 +9,8 @@ import { Vendor } from "@/lib/db/models/vendor"
 import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
 import { describeVehicle } from "@/features/vehicles/domain"
+import { calculatePaidAndPending, paymentStatus as paymentStatusOfSource } from "@/features/payments/domain"
+import { listActivePaymentApplicationsBySource } from "@/features/payments/queries"
 import type { Money } from "@/types/money"
 import { accumulateActiveRepairCost, repairTotalOriginal, repairTotalUsd } from "./domain"
 import {
@@ -131,6 +133,7 @@ function toRepairListItemDTO(
   repair: RepairLean,
   vehicles: Map<string, { code: string; description: string }>,
   vendors: Map<string, string>,
+  paymentSummary: Pick<RepairListItemDTO, "paymentStatus" | "paidUsd" | "pendingUsd">,
 ): RepairListItemDTO {
   const vehicle = vehicles.get(String(repair.vehicleId))
   const rate = exchangeRateToString(repair.exchangeRate)
@@ -153,6 +156,9 @@ function toRepairListItemDTO(
     exchangeRate: rate,
     totalOriginal: repairTotalOriginal(componentsOf(repair), repair.currency),
     totalUsd: repairTotalUsd(componentsOf(repair), repair.currency, rate),
+    paymentStatus: paymentSummary.paymentStatus,
+    paidUsd: paymentSummary.paidUsd,
+    pendingUsd: paymentSummary.pendingUsd,
     isVoided: Boolean(repair.voidedAt),
   }
 }
@@ -185,12 +191,30 @@ export async function listRepairs(filters: RepairFilters = {}): Promise<RepairLi
     .sort({ openedAt: -1, code: -1 })
     .lean()) as unknown as RepairLean[]
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions(repairs.map((repair) => repair.vehicleId)),
     vendorNames(repairs.flatMap((repair) => (repair.vendorId ? [repair.vendorId] : []))),
+    listActivePaymentApplicationsBySource(
+      repairs.map((repair) => ({ type: "repair" as const, id: String(repair._id) })),
+    ),
   ])
 
-  const rows = repairs.map((repair) => toRepairListItemDTO(repair, vehicles, vendors))
+  const rows = repairs.map((repair) => {
+    const totalUsd = repairTotalUsd(componentsOf(repair), repair.currency, exchangeRateToString(repair.exchangeRate))
+    const applications = paymentApplications.get(`repair:${repair._id}`) ?? []
+    const balances = calculatePaidAndPending(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    )
+    return toRepairListItemDTO(repair, vehicles, vendors, {
+      paymentStatus: paymentStatusOfSource(
+        totalUsd.amount,
+        applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+      ),
+      paidUsd: balances.paidUsd,
+      pendingUsd: balances.pendingUsd,
+    })
+  })
   if (!filters.search) return rows
 
   const needle = filters.search.trim().toLowerCase()
@@ -217,12 +241,26 @@ export async function getRepairByCode(code: string): Promise<RepairDetailDTO | n
   const repair = (await Repair.findOne({ code }).lean()) as unknown as RepairLean | null
   if (!repair) return null
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions([repair.vehicleId]),
     vendorNames(repair.vendorId ? [repair.vendorId] : []),
+    listActivePaymentApplicationsBySource([{ type: "repair", id: String(repair._id) }]),
   ])
 
-  const listItem = toRepairListItemDTO(repair, vehicles, vendors)
+  const totalUsd = repairTotalUsd(componentsOf(repair), repair.currency, exchangeRateToString(repair.exchangeRate))
+  const applications = paymentApplications.get(`repair:${repair._id}`) ?? []
+  const balances = calculatePaidAndPending(
+    totalUsd.amount,
+    applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+  )
+  const listItem = toRepairListItemDTO(repair, vehicles, vendors, {
+    paymentStatus: paymentStatusOfSource(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    ),
+    paidUsd: balances.paidUsd,
+    pendingUsd: balances.pendingUsd,
+  })
   const components = componentsOf(repair)
   const componentMoney = Object.fromEntries(
     REPAIR_COST_COMPONENT_KEYS.map((key) => [
@@ -276,6 +314,21 @@ export async function getRepairByCode(code: string): Promise<RepairDetailDTO | n
     voidedBy: repair.voidedBy ? String(repair.voidedBy) : null,
     voidedByName: repair.voidedBy ? (userNames.get(String(repair.voidedBy)) ?? null) : null,
     voidReason: repair.voidReason,
+    paymentSummary: {
+      paymentStatus: listItem.paymentStatus,
+      paidUsd: listItem.paidUsd,
+      pendingUsd: listItem.pendingUsd,
+      activeApplications: applications.map((application) => ({
+        paymentCode: application.paymentCode,
+        paymentDate: application.paymentDate,
+        paymentHref: application.paymentHref,
+        sourceType: application.sourceType,
+        sourceId: application.sourceId,
+        sourceCode: application.sourceCode,
+        appliedAmount: { amount: application.appliedAmount, currency: repair.currency },
+        appliedUsd: { amount: application.appliedUsd, currency: "USD" },
+      })),
+    },
   }
 }
 
@@ -294,12 +347,30 @@ export async function getVehicleRepairSummary(vehicleId: string): Promise<Vehicl
     .sort({ openedAt: -1, code: -1 })
     .lean()) as unknown as RepairLean[]
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions(repairs.map((repair) => repair.vehicleId)),
     vendorNames(repairs.flatMap((repair) => (repair.vendorId ? [repair.vendorId] : []))),
+    listActivePaymentApplicationsBySource(
+      repairs.map((repair) => ({ type: "repair" as const, id: String(repair._id) })),
+    ),
   ])
 
-  const rows = repairs.map((repair) => toRepairListItemDTO(repair, vehicles, vendors))
+  const rows = repairs.map((repair) => {
+    const totalUsd = repairTotalUsd(componentsOf(repair), repair.currency, exchangeRateToString(repair.exchangeRate))
+    const applications = paymentApplications.get(`repair:${repair._id}`) ?? []
+    const balances = calculatePaidAndPending(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    )
+    return toRepairListItemDTO(repair, vehicles, vendors, {
+      paymentStatus: paymentStatusOfSource(
+        totalUsd.amount,
+        applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+      ),
+      paidUsd: balances.paidUsd,
+      pendingUsd: balances.pendingUsd,
+    })
+  })
 
   const accumulation = accumulateActiveRepairCost(
     repairs.map((repair) => ({
@@ -322,8 +393,17 @@ export async function getVehicleRepairSummary(vehicleId: string): Promise<Vehicl
     count,
   }))
 
+  const paidUsdAmount = repairs
+    .filter((repair) => !repair.voidedAt && ["requested", "quoted", "inProgress", "completed"].includes(repair.status))
+    .reduce((total, repair) => {
+      const applications = paymentApplications.get(`repair:${repair._id}`) ?? []
+      return total + applications.reduce((subtotal, application) => subtotal + application.appliedUsd, 0)
+    }, 0)
+
   return {
     activeTotalUsd: accumulation.total,
+    activePaidUsd: { amount: paidUsdAmount, currency: "USD" },
+    activePendingUsd: { amount: Math.max(0, accumulation.total.amount - paidUsdAmount), currency: "USD" },
     activeCount: rows.filter((repair) => !repair.isVoided && ["requested", "quoted", "inProgress"].includes(repair.status)).length,
     rows,
     statusSummary,

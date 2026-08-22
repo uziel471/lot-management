@@ -139,6 +139,24 @@ export function RepairTable({
       numeric: true,
       render: (repair) => formatMoney(repair.totalUsd),
     },
+    {
+      key: "pendingUsd",
+      label: "Pendiente",
+      numeric: true,
+      render: (repair) => formatMoney(repair.pendingUsd),
+    },
+    {
+      key: "payment",
+      label: "Pago",
+      render: (repair) =>
+        repair.paymentStatus === "paid" ? (
+          <StatusBadge tone="success">Pagada</StatusBadge>
+        ) : repair.paymentStatus === "partial" ? (
+          <StatusBadge tone="warning">Parcial</StatusBadge>
+        ) : (
+          <StatusBadge tone="muted">Sin pagar</StatusBadge>
+        ),
+    },
   ]
 
   return (

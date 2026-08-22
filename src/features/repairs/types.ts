@@ -1,4 +1,5 @@
 import type { Money } from "@/types/money"
+import type { PaymentBalanceSummaryDTO } from "@/features/payments/types"
 import type {
   RepairCategory,
   RepairCostComponentKey,
@@ -33,6 +34,9 @@ export type RepairListItemDTO = {
   exchangeRate: string
   totalOriginal: Money
   totalUsd: Money
+  paymentStatus: PaymentBalanceSummaryDTO["paymentStatus"]
+  paidUsd: Money
+  pendingUsd: Money
   isVoided: boolean
 }
 
@@ -58,6 +62,7 @@ export type RepairDetailDTO = RepairListItemDTO & {
   voidedBy: string | null
   voidedByName: string | null
   voidReason: string | null
+  paymentSummary: PaymentBalanceSummaryDTO
 }
 
 export type RepairFilters = {
@@ -80,6 +85,8 @@ export type VehicleRepairStatusSummaryDTO = {
 
 export type VehicleRepairSummaryDTO = {
   activeTotalUsd: Money
+  activePaidUsd: Money
+  activePendingUsd: Money
   activeCount: number
   rows: RepairListItemDTO[]
   statusSummary: VehicleRepairStatusSummaryDTO[]

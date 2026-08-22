@@ -11,6 +11,7 @@ import type { ActionResult } from "@/types/action-result"
 import { Repair } from "@/lib/db/models/repair"
 import { Vehicle } from "@/lib/db/models/vehicle"
 import { Vendor } from "@/lib/db/models/vendor"
+import { getBlockingPaymentsForSources } from "@/features/payments/queries"
 import { cancelRepair, completeRepair, transitionRepairStatus, voidRepair } from "./domain"
 import { REPAIR_COST_COMPONENT_KEYS } from "./enums"
 import {
@@ -170,12 +171,14 @@ export async function createRepair(input: unknown): Promise<SaveRepairResult> {
 
 async function findRepairForMutation(code: string) {
   const repair = await Repair.findOne({ code }).select({
+    _id: 1,
     code: 1,
     vehicleId: 1,
     openedAt: 1,
     status: 1,
     voidedAt: 1,
   }).lean() as unknown as {
+    _id: Types.ObjectId
     code: string
     vehicleId: Types.ObjectId
     openedAt: Date
@@ -314,6 +317,13 @@ export async function cancelRepairActionServer(
     const current = await findRepairForMutation(code)
     if (!current) return fail(NOT_FOUND)
 
+    const blocking = await getBlockingPaymentsForSources([{ type: "repair", id: String(current.repair._id) }])
+    const blockingPayments = blocking.get(`repair:${current.repair._id}`) ?? []
+    if (blockingPayments.length > 0) {
+      const codes = blockingPayments.map((payment) => payment.paymentCode).join(", ")
+      return fail(`No se puede cancelar la reparación mientras tenga pagos activos (${codes}).`)
+    }
+
     const transition = cancelRepair(current.repair.status, parsed.data.reason)
     const updated = await Repair.findOneAndUpdate(
       { code, voidedAt: null },
@@ -366,6 +376,13 @@ export async function voidRepairRecord(
     await dbConnect()
     const current = await findRepairForMutation(code)
     if (!current) return fail(NOT_FOUND)
+
+    const blocking = await getBlockingPaymentsForSources([{ type: "repair", id: String(current.repair._id) }])
+    const blockingPayments = blocking.get(`repair:${current.repair._id}`) ?? []
+    if (blockingPayments.length > 0) {
+      const codes = blockingPayments.map((payment) => payment.paymentCode).join(", ")
+      return fail(`No se puede anular la reparación mientras tenga pagos activos (${codes}).`)
+    }
 
     const transition = voidRepair(current.repair.status, parsed.data.reason)
     const updated = await Repair.findOneAndUpdate(

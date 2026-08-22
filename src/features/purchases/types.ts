@@ -1,4 +1,5 @@
 import type { Money } from "@/types/money"
+import type { PaymentBalanceSummaryDTO } from "@/features/payments/types"
 import type { CostComponentKey, PaymentMethod, SourceType, TxType } from "./enums"
 
 /**
@@ -24,6 +25,9 @@ export type PurchaseListItemDTO = {
   exchangeRate: string
   totalOriginal: Money
   totalUsd: Money
+  paymentStatus: PaymentBalanceSummaryDTO["paymentStatus"]
+  paidUsd: Money
+  pendingUsd: Money
   isVoided: boolean
 }
 
@@ -45,6 +49,7 @@ export type PurchaseDetailDTO = PurchaseListItemDTO & {
   voidedBy: string | null
   voidedByName: string | null
   voidReason: string | null
+  paymentSummary: PaymentBalanceSummaryDTO
 }
 
 /** Compra anulada de un vehículo, candidata para `correctsPurchaseId`. */
@@ -60,6 +65,8 @@ export type VoidedPurchaseOptionDTO = {
 /** Costo de adquisición acumulado de un vehículo, con su desglose. */
 export type VehicleAcquisitionCostDTO = {
   total: Money
+  paidUsd: Money
+  pendingUsd: Money
   components: Record<CostComponentKey, Money>
   purchaseCount: number
 }

@@ -38,6 +38,10 @@ export function VehicleRepairSummary({
           <div className="rounded-lg border p-4">
             <p className="text-xs font-medium text-muted-foreground">Costo activo de reparaciones</p>
             <p className="mt-1 text-lg font-semibold">{formatMoney(summary.activeTotalUsd)}</p>
+            <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+              <p>Pagado: {formatMoney(summary.activePaidUsd)}</p>
+              <p>Pendiente: {formatMoney(summary.activePendingUsd)}</p>
+            </div>
           </div>
           <div className="rounded-lg border p-4">
             <p className="text-xs font-medium text-muted-foreground">Reparaciones activas</p>
@@ -85,6 +89,7 @@ export function VehicleRepairSummary({
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{formatMoney(repair.totalUsd)}</p>
+                    <p className="text-xs text-muted-foreground">Pendiente: {formatMoney(repair.pendingUsd)}</p>
                     <p className="text-xs text-muted-foreground">
                       {repair.isVoided ? "Fuera del costo activo" : "Detalle consultable"}
                     </p>

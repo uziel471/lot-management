@@ -104,13 +104,23 @@ export function PurchaseTable({
       render: (purchase) => formatMoney(purchase.totalUsd),
     },
     {
+      key: "pendingUsd",
+      label: "Pendiente",
+      numeric: true,
+      render: (purchase) => formatMoney(purchase.pendingUsd),
+    },
+    {
       key: "status",
       label: "Estado",
       render: (purchase) =>
         purchase.isVoided ? (
           <StatusBadge tone="destructive">Anulada</StatusBadge>
+        ) : purchase.paymentStatus === "paid" ? (
+          <StatusBadge tone="success">Pagada</StatusBadge>
+        ) : purchase.paymentStatus === "partial" ? (
+          <StatusBadge tone="warning">Parcial</StatusBadge>
         ) : (
-          <StatusBadge tone="success">Vigente</StatusBadge>
+          <StatusBadge tone="muted">Sin pagar</StatusBadge>
         ),
     },
   ]

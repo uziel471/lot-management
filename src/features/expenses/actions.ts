@@ -11,6 +11,7 @@ import type { ActionResult } from "@/types/action-result"
 import { Expense } from "@/lib/db/models/expense"
 import { Vehicle } from "@/lib/db/models/vehicle"
 import { Vendor } from "@/lib/db/models/vendor"
+import { getBlockingPaymentsForSources } from "@/features/payments/queries"
 import { isExpenseCategory } from "./domain"
 import { EXPENSE_COMPONENT_KEYS } from "./enums"
 import { expenseCreateSchema, type ExpenseInput, voidExpenseSchema } from "./schema"
@@ -173,8 +174,15 @@ export async function voidExpense(code: string, input: unknown): Promise<ActionR
   try {
     await dbConnect()
 
-    const current = await Expense.findOne({ code }).select({ vehicleId: 1 }).lean()
+    const current = await Expense.findOne({ code }).select({ _id: 1, vehicleId: 1 }).lean()
     if (!current) return fail(NOT_FOUND)
+
+    const blocking = await getBlockingPaymentsForSources([{ type: "expense", id: String(current._id) }])
+    const blockingPayments = blocking.get(`expense:${current._id}`) ?? []
+    if (blockingPayments.length > 0) {
+      const codes = blockingPayments.map((payment) => payment.paymentCode).join(", ")
+      return fail(`No se puede anular el gasto mientras tenga pagos activos (${codes}).`)
+    }
 
     const updated = await Expense.findOneAndUpdate(
       { code, voidedAt: null },

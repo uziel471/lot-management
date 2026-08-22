@@ -22,10 +22,12 @@ import { Counter } from "../src/lib/db/counters"
 import { listCatalogs } from "../src/features/catalogs/registry"
 import { Vehicle } from "../src/lib/db/models/vehicle"
 import { Purchase } from "../src/lib/db/models/purchase"
+import { Payment } from "../src/lib/db/models/payment"
 
 /** Prefijos de contador fuera del registro de catálogos. */
 const VEHICLE_CODE_PREFIX = "VEH"
 const PURCHASE_CODE_PREFIX = "PUR"
+const PAYMENT_CODE_PREFIX = "PAY"
 
 /** Extrae el número de un código `PREFIJO-NNNN`. Devuelve 0 si no encaja. */
 function sequenceOf(code: string, prefix: string): number {
@@ -86,6 +88,11 @@ export async function realignCounters(): Promise<CounterRealignment[]> {
     .select({ code: 1 })
     .lean()) as unknown as { code: string }[]
   report.push(await realignOne(PURCHASE_CODE_PREFIX, purchaseDocuments))
+
+  const paymentDocuments = (await Payment.find({})
+    .select({ code: 1 })
+    .lean()) as unknown as { code: string }[]
+  report.push(await realignOne(PAYMENT_CODE_PREFIX, paymentDocuments))
 
   return report
 }

@@ -9,6 +9,8 @@ import { Vendor } from "@/lib/db/models/vendor"
 import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
 import { describeVehicle } from "@/features/vehicles/domain"
+import { calculatePaidAndPending, paymentStatus as paymentStatusOfSource } from "@/features/payments/domain"
+import { listActivePaymentApplicationsBySource } from "@/features/payments/queries"
 import { listActiveOptions } from "@/features/catalogs/queries"
 import { listVehicleOptions } from "@/features/vehicles/queries"
 import type { CatalogOption } from "@/features/catalogs/types"
@@ -123,6 +125,7 @@ function toExpenseListItemDTO(
   expense: ExpenseLean,
   vehicles: Map<string, { code: string; description: string }>,
   vendors: Map<string, string>,
+  paymentSummary: Pick<ExpenseListItemDTO, "paymentStatus" | "paidUsd" | "pendingUsd">,
 ): ExpenseListItemDTO {
   const rate = exchangeRateToString(expense.exchangeRate)
   const vehicle = expense.vehicleId ? vehicles.get(String(expense.vehicleId)) : null
@@ -144,6 +147,9 @@ function toExpenseListItemDTO(
     paymentMethod: expense.paymentMethod,
     totalOriginal: expenseTotalOriginal(components, expense.currency),
     totalUsd: expenseTotalUsd(components, expense.currency, rate),
+    paymentStatus: paymentSummary.paymentStatus,
+    paidUsd: paymentSummary.paidUsd,
+    pendingUsd: paymentSummary.pendingUsd,
     isVoided: Boolean(expense.voidedAt),
   }
 }
@@ -178,12 +184,30 @@ export async function listExpenses(filters: ExpenseFilters = {}): Promise<Expens
     .sort({ expenseDate: -1, code: -1 })
     .lean()) as unknown as ExpenseLean[]
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions(expenses.flatMap((expense) => (expense.vehicleId ? [expense.vehicleId] : []))),
     vendorNames(expenses.flatMap((expense) => (expense.vendorId ? [expense.vendorId] : []))),
+    listActivePaymentApplicationsBySource(
+      expenses.map((expense) => ({ type: "expense" as const, id: String(expense._id) })),
+    ),
   ])
 
-  const rows = expenses.map((expense) => toExpenseListItemDTO(expense, vehicles, vendors))
+  const rows = expenses.map((expense) => {
+    const totalUsd = expenseTotalUsd(componentsOf(expense), expense.currency, exchangeRateToString(expense.exchangeRate))
+    const applications = paymentApplications.get(`expense:${expense._id}`) ?? []
+    const balances = calculatePaidAndPending(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    )
+    return toExpenseListItemDTO(expense, vehicles, vendors, {
+      paymentStatus: paymentStatusOfSource(
+        totalUsd.amount,
+        applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+      ),
+      paidUsd: balances.paidUsd,
+      pendingUsd: balances.pendingUsd,
+    })
+  })
   if (!filters.search) return rows
 
   const needle = filters.search.trim().toLowerCase()
@@ -209,12 +233,26 @@ export async function getExpenseByCode(code: string): Promise<ExpenseDetailDTO |
   const expense = (await Expense.findOne({ code }).lean()) as unknown as ExpenseLean | null
   if (!expense) return null
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions(expense.vehicleId ? [expense.vehicleId] : []),
     vendorNames(expense.vendorId ? [expense.vendorId] : []),
+    listActivePaymentApplicationsBySource([{ type: "expense", id: String(expense._id) }]),
   ])
 
-  const listItem = toExpenseListItemDTO(expense, vehicles, vendors)
+  const totalUsd = expenseTotalUsd(componentsOf(expense), expense.currency, exchangeRateToString(expense.exchangeRate))
+  const applications = paymentApplications.get(`expense:${expense._id}`) ?? []
+  const balances = calculatePaidAndPending(
+    totalUsd.amount,
+    applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+  )
+  const listItem = toExpenseListItemDTO(expense, vehicles, vendors, {
+    paymentStatus: paymentStatusOfSource(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    ),
+    paidUsd: balances.paidUsd,
+    pendingUsd: balances.pendingUsd,
+  })
   const components = componentsOf(expense)
   const componentMoney = Object.fromEntries(
     EXPENSE_COMPONENT_KEYS.map((key) => [
@@ -242,6 +280,21 @@ export async function getExpenseByCode(code: string): Promise<ExpenseDetailDTO |
     voidedBy: expense.voidedBy ? String(expense.voidedBy) : null,
     voidedByName: expense.voidedBy ? (userNames.get(String(expense.voidedBy)) ?? null) : null,
     voidReason: expense.voidReason,
+    paymentSummary: {
+      paymentStatus: listItem.paymentStatus,
+      paidUsd: listItem.paidUsd,
+      pendingUsd: listItem.pendingUsd,
+      activeApplications: applications.map((application) => ({
+        paymentCode: application.paymentCode,
+        paymentDate: application.paymentDate,
+        paymentHref: application.paymentHref,
+        sourceType: application.sourceType,
+        sourceId: application.sourceId,
+        sourceCode: application.sourceCode,
+        appliedAmount: { amount: application.appliedAmount, currency: expense.currency },
+        appliedUsd: { amount: application.appliedUsd, currency: "USD" },
+      })),
+    },
   }
 }
 
@@ -270,12 +323,30 @@ export async function getVehicleExpenseSummary(vehicleId: string): Promise<Vehic
     .sort({ expenseDate: -1, code: -1 })
     .lean()) as unknown as ExpenseLean[]
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions(expenses.flatMap((expense) => (expense.vehicleId ? [expense.vehicleId] : []))),
     vendorNames(expenses.flatMap((expense) => (expense.vendorId ? [expense.vendorId] : []))),
+    listActivePaymentApplicationsBySource(
+      expenses.map((expense) => ({ type: "expense" as const, id: String(expense._id) })),
+    ),
   ])
 
-  const rows = expenses.map((expense) => toExpenseListItemDTO(expense, vehicles, vendors))
+  const rows = expenses.map((expense) => {
+    const totalUsd = expenseTotalUsd(componentsOf(expense), expense.currency, exchangeRateToString(expense.exchangeRate))
+    const applications = paymentApplications.get(`expense:${expense._id}`) ?? []
+    const balances = calculatePaidAndPending(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    )
+    return toExpenseListItemDTO(expense, vehicles, vendors, {
+      paymentStatus: paymentStatusOfSource(
+        totalUsd.amount,
+        applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+      ),
+      paidUsd: balances.paidUsd,
+      pendingUsd: balances.pendingUsd,
+    })
+  })
   const accumulation = summarizeVehicleExpenses(
     expenses.map((expense) => ({
       category: expense.category,
@@ -285,6 +356,12 @@ export async function getVehicleExpenseSummary(vehicleId: string): Promise<Vehic
       voidedAt: expense.voidedAt,
     })),
   )
+  const paidUsdAmount = expenses
+    .filter((expense) => !expense.voidedAt)
+    .reduce((total, expense) => {
+      const applications = paymentApplications.get(`expense:${expense._id}`) ?? []
+      return total + applications.reduce((subtotal, application) => subtotal + application.appliedUsd, 0)
+    }, 0)
 
   const categorySummary: VehicleExpenseCategorySummaryDTO[] = accumulation.categories
     .map((entry) => ({
@@ -297,6 +374,8 @@ export async function getVehicleExpenseSummary(vehicleId: string): Promise<Vehic
 
   return {
     activeTotalUsd: accumulation.totalUsd,
+    activePaidUsd: { amount: paidUsdAmount, currency: "USD" },
+    activePendingUsd: { amount: Math.max(0, accumulation.totalUsd.amount - paidUsdAmount), currency: "USD" },
     activeCount: rows.filter((expense) => !expense.isVoided).length,
     rows,
     categorySummary,

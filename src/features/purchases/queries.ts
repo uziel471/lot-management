@@ -8,6 +8,8 @@ import { Vehicle } from "@/lib/db/models/vehicle"
 import { Vendor } from "@/lib/db/models/vendor"
 import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
+import { calculatePaidAndPending, paymentStatus as paymentStatusOfSource } from "@/features/payments/domain"
+import { listActivePaymentApplicationsBySource } from "@/features/payments/queries"
 import { describeVehicle } from "@/features/vehicles/domain"
 import type { Money } from "@/types/money"
 import {
@@ -125,6 +127,7 @@ function toListItemDTO(
   purchase: PurchaseLean,
   vehicles: Map<string, { code: string; description: string }>,
   vendors: Map<string, string>,
+  paymentSummary: Pick<PurchaseListItemDTO, "paymentStatus" | "paidUsd" | "pendingUsd">,
 ): PurchaseListItemDTO {
   const rate = exchangeRateToString(purchase.exchangeRate)
   const components = componentsOf(purchase)
@@ -145,6 +148,9 @@ function toListItemDTO(
     exchangeRate: rate,
     totalOriginal: domainTotalOriginal(components, purchase.currency),
     totalUsd: domainTotalUsd(components, purchase.currency, rate),
+    paymentStatus: paymentSummary.paymentStatus,
+    paidUsd: paymentSummary.paidUsd,
+    pendingUsd: paymentSummary.pendingUsd,
     isVoided: Boolean(purchase.voidedAt),
   }
 }
@@ -182,10 +188,31 @@ export async function listPurchases(
     .sort({ purchaseDate: -1, code: -1 })
     .lean()) as unknown as PurchaseLean[]
 
-  const vehicles = await vehicleDescriptions(purchases.map((p) => p.vehicleId))
-  const vendors = await vendorNames(purchases.map((p) => p.vendorId))
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
+    vehicleDescriptions(purchases.map((p) => p.vehicleId)),
+    vendorNames(purchases.map((p) => p.vendorId)),
+    listActivePaymentApplicationsBySource(
+      purchases.map((purchase) => ({ type: "purchase" as const, id: String(purchase._id) })),
+    ),
+  ])
 
-  return purchases.map((purchase) => toListItemDTO(purchase, vehicles, vendors))
+  return purchases.map((purchase) => {
+    const components = componentsOf(purchase)
+    const totalUsd = domainTotalUsd(components, purchase.currency, exchangeRateToString(purchase.exchangeRate))
+    const applications = paymentApplications.get(`purchase:${purchase._id}`) ?? []
+    const balances = calculatePaidAndPending(
+      totalUsd.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    )
+    return toListItemDTO(purchase, vehicles, vendors, {
+      paymentStatus: paymentStatusOfSource(
+        totalUsd.amount,
+        applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+      ),
+      paidUsd: balances.paidUsd,
+      pendingUsd: balances.pendingUsd,
+    })
+  })
 }
 
 /** Detalle completo de una compra, con la conversión aplicada y los datos de anulación. */
@@ -197,11 +224,25 @@ export async function getPurchaseByCode(code: string): Promise<PurchaseDetailDTO
   const purchase = (await Purchase.findOne({ code }).lean()) as unknown as PurchaseLean | null
   if (!purchase) return null
 
-  const [vehicles, vendors] = await Promise.all([
+  const [vehicles, vendors, paymentApplications] = await Promise.all([
     vehicleDescriptions([purchase.vehicleId]),
     vendorNames([purchase.vendorId]),
+    listActivePaymentApplicationsBySource([{ type: "purchase", id: String(purchase._id) }]),
   ])
-  const listItem = toListItemDTO(purchase, vehicles, vendors)
+  const purchaseTotal = domainTotalUsd(componentsOf(purchase), purchase.currency, exchangeRateToString(purchase.exchangeRate))
+  const applications = paymentApplications.get(`purchase:${purchase._id}`) ?? []
+  const balances = calculatePaidAndPending(
+    purchaseTotal.amount,
+    applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+  )
+  const listItem = toListItemDTO(purchase, vehicles, vendors, {
+    paymentStatus: paymentStatusOfSource(
+      purchaseTotal.amount,
+      applications.map((application) => ({ appliedUsd: application.appliedUsd })),
+    ),
+    paidUsd: balances.paidUsd,
+    pendingUsd: balances.pendingUsd,
+  })
 
   const components = componentsOf(purchase)
   const componentMoney = Object.fromEntries(
@@ -248,6 +289,21 @@ export async function getPurchaseByCode(code: string): Promise<PurchaseDetailDTO
     voidedBy: purchase.voidedBy ? String(purchase.voidedBy) : null,
     voidedByName: purchase.voidedBy ? (userNames.get(String(purchase.voidedBy)) ?? null) : null,
     voidReason: purchase.voidReason,
+    paymentSummary: {
+      paymentStatus: listItem.paymentStatus,
+      paidUsd: listItem.paidUsd,
+      pendingUsd: listItem.pendingUsd,
+      activeApplications: applications.map((application) => ({
+        paymentCode: application.paymentCode,
+        paymentDate: application.paymentDate,
+        paymentHref: application.paymentHref,
+        sourceType: application.sourceType,
+        sourceId: application.sourceId,
+        sourceCode: application.sourceCode,
+        appliedAmount: { amount: application.appliedAmount, currency: purchase.currency },
+        appliedUsd: { amount: application.appliedUsd, currency: "USD" },
+      })),
+    },
   }
 }
 
@@ -283,9 +339,19 @@ export async function getVehicleAcquisitionCost(
       voidedAt: purchase.voidedAt,
     })),
   )
+  const paymentApplications = await listActivePaymentApplicationsBySource(
+    purchases.map((purchase) => ({ type: "purchase" as const, id: String(purchase._id) })),
+  )
+  const activeRows = purchases.filter((purchase) => !purchase.voidedAt)
+  const paidUsdAmount = activeRows.reduce((total, purchase) => {
+    const applications = paymentApplications.get(`purchase:${purchase._id}`) ?? []
+    return total + applications.reduce((subtotal, application) => subtotal + application.appliedUsd, 0)
+  }, 0)
 
   return {
     total: accumulation.total,
+    paidUsd: { amount: paidUsdAmount, currency: "USD" },
+    pendingUsd: { amount: Math.max(0, accumulation.total.amount - paidUsdAmount), currency: "USD" },
     components: accumulation.components,
     purchaseCount: purchases.filter((p) => !p.voidedAt).length,
   }

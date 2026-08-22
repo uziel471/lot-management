@@ -165,13 +165,24 @@ export function ExpenseTable({
       render: (expense) => formatMoney(expense.totalUsd),
     },
     {
+      key: "pendingUsd",
+      label: "Pendiente",
+      numeric: true,
+      render: (expense) => formatMoney(expense.pendingUsd),
+    },
+    {
       key: "status",
       label: "Estado",
-      render: (expense) => (
-        <StatusBadge tone={expenseStatusTone(expense.isVoided ? "voided" : "active")}>
-          {expense.isVoided ? "Anulado" : "Vigente"}
-        </StatusBadge>
-      ),
+      render: (expense) =>
+        expense.isVoided ? (
+          <StatusBadge tone={expenseStatusTone("voided")}>Anulado</StatusBadge>
+        ) : expense.paymentStatus === "paid" ? (
+          <StatusBadge tone="success">Pagado</StatusBadge>
+        ) : expense.paymentStatus === "partial" ? (
+          <StatusBadge tone="warning">Parcial</StatusBadge>
+        ) : (
+          <StatusBadge tone="muted">Sin pagar</StatusBadge>
+        ),
     },
   ]
 

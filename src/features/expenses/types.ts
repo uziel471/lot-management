@@ -1,4 +1,5 @@
 import type { Money } from "@/types/money"
+import type { PaymentBalanceSummaryDTO } from "@/features/payments/types"
 import type {
   ExpenseCategory,
   ExpenseComponentKey,
@@ -22,6 +23,9 @@ export type ExpenseListItemDTO = {
   paymentMethod: PaymentMethod | null
   totalOriginal: Money
   totalUsd: Money
+  paymentStatus: PaymentBalanceSummaryDTO["paymentStatus"]
+  paidUsd: Money
+  pendingUsd: Money
   isVoided: boolean
 }
 
@@ -40,6 +44,7 @@ export type ExpenseDetailDTO = ExpenseListItemDTO & {
   voidedBy: string | null
   voidedByName: string | null
   voidReason: string | null
+  paymentSummary: PaymentBalanceSummaryDTO
 }
 
 export type ExpenseFilters = {
@@ -64,6 +69,8 @@ export type VehicleExpenseCategorySummaryDTO = {
 
 export type VehicleExpenseSummaryDTO = {
   activeTotalUsd: Money
+  activePaidUsd: Money
+  activePendingUsd: Money
   activeCount: number
   rows: ExpenseListItemDTO[]
   categorySummary: VehicleExpenseCategorySummaryDTO[]

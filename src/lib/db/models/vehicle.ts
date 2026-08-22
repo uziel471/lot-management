@@ -77,8 +77,14 @@ const vehicleSchema = new Schema(
 )
 
 // `code` ya lleva su índice único en `auditableFields`.
-vehicleSchema.index({ vin: 1 }, { unique: true, sparse: true })
-vehicleSchema.index({ stockNumber: 1 }, { unique: true, sparse: true })
+vehicleSchema.index(
+  { vin: 1 },
+  { unique: true, partialFilterExpression: { vin: { $type: "string" } } },
+)
+vehicleSchema.index(
+  { stockNumber: 1 },
+  { unique: true, partialFilterExpression: { stockNumber: { $type: "string" } } },
+)
 vehicleSchema.index({ statusId: 1, dateReceived: -1 })
 vehicleSchema.index({ makeId: 1, modelId: 1 })
 

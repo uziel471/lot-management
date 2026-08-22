@@ -111,12 +111,43 @@ export function PurchaseDetail({
             <div className="grid gap-3 sm:grid-cols-2">
               <Metric label="Total original" value={formatMoney(purchase.totalOriginal)} />
               <Metric label="Total en USD" value={formatMoney(purchase.totalUsd)} />
+              <Metric label="Pagado USD" value={formatMoney(purchase.paidUsd)} />
+              <Metric label="Pendiente USD" value={formatMoney(purchase.pendingUsd)} />
             </div>
             {purchase.isVoided ? (
               <p className="text-sm text-muted-foreground">
                 Esta compra permanece consultable, pero ya no contribuye al costo de adquisición del vehículo.
               </p>
             ) : null}
+          </DetailSection>
+
+          <DetailSection
+            title="Pagos relacionados"
+            description="Aplicaciones activas que reducen el saldo pendiente de esta compra."
+          >
+            {purchase.paymentSummary.activeApplications.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin pagos activos relacionados.</p>
+            ) : (
+              <div className="rounded-lg border">
+                <div className="divide-y">
+                  {purchase.paymentSummary.activeApplications.map((application) => (
+                    <Link
+                      key={`${application.paymentCode}-${application.sourceId}`}
+                      href={application.paymentHref}
+                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/40"
+                    >
+                      <div>
+                        <p className="font-mono text-xs">{application.paymentCode}</p>
+                        <p className="text-muted-foreground">{application.paymentDate.slice(0, 10)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatMoney(application.appliedUsd)}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </DetailSection>
 
           <DetailSection

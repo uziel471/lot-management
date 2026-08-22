@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose"
+import mongoose, { Schema, type ClientSession } from "mongoose"
 import { dbConnect } from "./client"
 
 interface CounterDocument {
@@ -31,12 +31,12 @@ const CODE_DIGITS = 4
  * registro, después de validar: si la validación falla antes de
  * llamar a `nextCode`, no se consume ningún número.
  */
-export async function nextCode(prefix: string): Promise<string> {
+export async function nextCode(prefix: string, session?: ClientSession): Promise<string> {
   await dbConnect()
   const counter = await Counter.findOneAndUpdate(
     { _id: prefix },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true },
+    { new: true, upsert: true, session },
   ).lean()
 
   const seq = counter!.seq

@@ -13,6 +13,9 @@ import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
 import { VehicleStatus } from "@/lib/db/models/vehicle-status"
 import { Purchase } from "@/lib/db/models/purchase"
+import { Expense } from "@/lib/db/models/expense"
+import { Repair } from "@/lib/db/models/repair"
+import { getBlockingPaymentsForSources } from "@/features/payments/queries"
 import { toMinorUnits } from "@/lib/money"
 import { getVehicleByCode } from "./queries"
 import {
@@ -450,12 +453,41 @@ export async function voidVehicle(
     // importa `features/purchases`: la verificación consulta
     // directamente el modelo de `lib/db/models/purchase.ts`.
     const activePurchases = (await Purchase.find({ vehicleId: current._id, voidedAt: null })
-      .select({ code: 1 })
-      .lean()) as unknown as { code: string }[]
+      .select({ _id: 1, code: 1 })
+      .lean()) as unknown as { _id: Types.ObjectId; code: string }[]
     if (activePurchases.length > 0) {
       const codes = activePurchases.map((purchase) => purchase.code).join(", ")
       const message = `No se puede anular: tiene compras vigentes (${codes}). Anúlalas primero.`
       return fail(message)
+    }
+
+    const [expenses, repairs] = await Promise.all([
+      Expense.find({ vehicleId: current._id }).select({ _id: 1, code: 1 }).lean() as unknown as Promise<
+        { _id: Types.ObjectId; code: string }[]
+      >,
+      Repair.find({ vehicleId: current._id }).select({ _id: 1, code: 1 }).lean() as unknown as Promise<
+        { _id: Types.ObjectId; code: string }[]
+      >,
+    ])
+
+    const blocking = await getBlockingPaymentsForSources([
+      ...activePurchases.map((purchase) => ({ type: "purchase" as const, id: String(purchase._id) })),
+      ...expenses.map((expense) => ({ type: "expense" as const, id: String(expense._id) })),
+      ...repairs.map((repair) => ({ type: "repair" as const, id: String(repair._id) })),
+    ])
+    const blockingLabels = [
+      ...activePurchases.flatMap((purchase) =>
+        (blocking.get(`purchase:${purchase._id}`) ?? []).map((payment) => `${payment.paymentCode} en ${purchase.code}`),
+      ),
+      ...expenses.flatMap((expense) =>
+        (blocking.get(`expense:${expense._id}`) ?? []).map((payment) => `${payment.paymentCode} en ${expense.code}`),
+      ),
+      ...repairs.flatMap((repair) =>
+        (blocking.get(`repair:${repair._id}`) ?? []).map((payment) => `${payment.paymentCode} en ${repair.code}`),
+      ),
+    ]
+    if (blockingLabels.length > 0) {
+      return fail(`No se puede anular: tiene documentos financieros con pagos activos (${blockingLabels.join(", ")}).`)
     }
 
     const updated = await Vehicle.findOneAndUpdate(

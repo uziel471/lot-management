@@ -11,6 +11,8 @@ vi.mock("next/headers", () => ({
 const { getAuth } = await import("@/lib/auth/auth")
 const { verifySession } = await import("@/lib/auth/dal")
 
+let sequence = 0
+
 async function createActiveUser(email: string, password: string, role: "admin" | "capturista" | "lectura" = "capturista") {
   const auth = await getAuth()
   await auth.api.createUser({ body: { name: "Test User", email, password, role } })
@@ -133,11 +135,13 @@ describe("verifySession()", () => {
 // en cada `afterEach`, así que cada test necesita su propio admin.
 async function adminHeaders(): Promise<Headers> {
   const auth = await getAuth()
+  sequence++
+  const email = `admin-fixture-${sequence}@lote.com`
   await auth.api.createUser({
-    body: { name: "Admin de prueba", email: "admin-fixture@lote.com", password: "password123", role: "admin" },
+    body: { name: "Admin de prueba", email, password: "password123", role: "admin" },
   })
   const response = await auth.api.signInEmail({
-    body: { email: "admin-fixture@lote.com", password: "password123" },
+    body: { email, password: "password123" },
     asResponse: true,
   })
   return new Headers({ cookie: setCookieToCookieHeader(response.headers.get("set-cookie")) })

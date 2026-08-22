@@ -38,6 +38,10 @@ export function VehicleExpenseSummary({
           <div className="rounded-lg border p-4">
             <p className="text-xs font-medium text-muted-foreground">Costo activo de gastos</p>
             <p className="mt-1 text-lg font-semibold">{formatMoney(summary.activeTotalUsd)}</p>
+            <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+              <p>Pagado: {formatMoney(summary.activePaidUsd)}</p>
+              <p>Pendiente: {formatMoney(summary.activePendingUsd)}</p>
+            </div>
           </div>
           <div className="rounded-lg border p-4">
             <p className="text-xs font-medium text-muted-foreground">Gastos activos</p>
@@ -87,6 +91,7 @@ export function VehicleExpenseSummary({
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{formatMoney(expense.totalUsd)}</p>
+                    <p className="text-xs text-muted-foreground">Pendiente: {formatMoney(expense.pendingUsd)}</p>
                     <p className="text-xs text-muted-foreground">
                       {expense.isVoided ? "Fuera del costo activo" : "Detalle consultable"}
                     </p>
