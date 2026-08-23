@@ -128,3 +128,40 @@ export function maxVehicleYear(today: Date): number {
 export function isValidVehicleYear(year: number, today: Date): boolean {
   return Number.isInteger(year) && year >= MIN_VEHICLE_YEAR && year <= maxVehicleYear(today)
 }
+
+export const VEHICLE_IMAGE_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const
+export const VEHICLE_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+export const VEHICLE_IMAGE_MAX_BYTES_MB = 10
+export const VEHICLE_IMAGE_MAX_ACTIVE = 40
+export const VEHICLE_IMAGE_ACCEPT = VEHICLE_IMAGE_ALLOWED_MIME_TYPES.join(",")
+
+const VEHICLE_IMAGE_EXTENSION_BY_MIME_TYPE: Record<(typeof VEHICLE_IMAGE_ALLOWED_MIME_TYPES)[number], string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+}
+
+export function isSupportedVehicleImageMimeType(
+  mimeType: string,
+): mimeType is (typeof VEHICLE_IMAGE_ALLOWED_MIME_TYPES)[number] {
+  return VEHICLE_IMAGE_ALLOWED_MIME_TYPES.includes(
+    mimeType as (typeof VEHICLE_IMAGE_ALLOWED_MIME_TYPES)[number],
+  )
+}
+
+export function vehicleImageExtensionFromMimeType(mimeType: string): string | null {
+  if (!isSupportedVehicleImageMimeType(mimeType)) return null
+  return VEHICLE_IMAGE_EXTENSION_BY_MIME_TYPE[mimeType]
+}
+
+export function isSupportedVehicleImageSize(byteSize: number): boolean {
+  return Number.isInteger(byteSize) && byteSize > 0 && byteSize <= VEHICLE_IMAGE_MAX_BYTES
+}
+
+export function canAddVehicleImage(activeImages: number): boolean {
+  return activeImages < VEHICLE_IMAGE_MAX_ACTIVE
+}
+
+export function vehicleImageRulesDescription() {
+  return `JPEG, PNG o WebP · máximo ${VEHICLE_IMAGE_MAX_BYTES_MB} MB · hasta ${VEHICLE_IMAGE_MAX_ACTIVE} imágenes activas`
+}

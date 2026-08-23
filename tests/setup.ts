@@ -17,6 +17,11 @@ beforeAll(async () => {
   process.env.MONGODB_DB = "lotManagement_test"
   process.env.BETTER_AUTH_SECRET ??= "test-secret-do-not-use-in-production"
   process.env.BETTER_AUTH_URL ??= "http://localhost:3000"
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co"
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??= "test-publishable-key"
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key"
+  process.env.VEHICLE_IMAGES_BUCKET ??= "vehicle-images"
+  process.env.VEHICLE_IMAGES_PUBLIC ??= "true"
 
   await mongoose.connect(uri, { dbName: "lotManagement_test" })
 }, 60_000)

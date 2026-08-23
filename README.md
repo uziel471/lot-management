@@ -17,11 +17,16 @@ Next.js 16 (App Router, Server Actions), MongoDB con Mongoose, Better Auth y Vit
 
 ```bash
 pnpm install
-cp .env.example .env.local     # completar MONGODB_URI, MONGODB_DB y BETTER_AUTH_SECRET
+cp .env.example .env.local     # completar MongoDB, Better Auth y Supabase Storage
 pnpm dev
 ```
 
 El secreto se genera con `openssl rand -base64 32`.
+
+Para Storage de imágenes puedes usar cualquiera de estas dos configuraciones:
+
+- `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_STORAGE_S3_ENDPOINT` + `SUPABASE_STORAGE_ACCESS_KEY_ID` + `SUPABASE_STORAGE_SECRET_ACCESS_KEY`
 
 ### Datos iniciales, en este orden
 

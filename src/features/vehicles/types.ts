@@ -24,6 +24,24 @@ export type StatusHistoryEntryDTO = {
   changedAt: string
 }
 
+export type VehicleImageDTO = {
+  id: string
+  vehicleId: string
+  storageBucket: string
+  storagePath: string
+  originalFileName: string
+  mimeType: string
+  byteSize: number
+  createdBy: string
+  createdByName: string | null
+  createdAt: string
+  deletedAt: string | null
+  deletedBy: string | null
+  deleteError: string | null
+  active: boolean
+  renderUrl: string
+}
+
 /** Fila del listado de inventario. */
 export type VehicleListItemDTO = {
   id: string
@@ -63,6 +81,7 @@ export type VehicleDetailDTO = VehicleListItemDTO & {
   lotLocation: string | null
   notes: string | null
   statusHistory: StatusHistoryEntryDTO[]
+  images: VehicleImageDTO[]
   vinCheckDigitWarning: boolean
   createdBy: string
   createdByName: string | null

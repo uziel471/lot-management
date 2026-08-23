@@ -7,7 +7,12 @@ import {
   TITLE_STATUS_VALUES,
   TRANSMISSION_VALUES,
 } from "./enums"
-import { isValidVehicleYear, isValidVinFormat, maxVehicleYear, normalizeVin } from "./domain"
+import {
+  isValidVehicleYear,
+  isValidVinFormat,
+  maxVehicleYear,
+  normalizeVin,
+} from "./domain"
 
 /**
  * Esquemas de entrada del vehículo. El mismo esquema valida en el
@@ -147,6 +152,17 @@ export const voidVehicleSchema = z.object({
     .max(500, { error: "El motivo admite como máximo 500 caracteres." }),
 })
 export type VoidVehicleInput = z.infer<typeof voidVehicleSchema>
+
+export const uploadVehicleImageSchema = z.object({
+  vehicleId: objectIdField("El vehículo"),
+})
+export type UploadVehicleImageInput = z.infer<typeof uploadVehicleImageSchema>
+
+export const deleteVehicleImageSchema = z.object({
+  vehicleId: objectIdField("El vehículo"),
+  imageId: objectIdField("La imagen"),
+})
+export type DeleteVehicleImageInput = z.infer<typeof deleteVehicleImageSchema>
 
 /** Filtros del listado de inventario. Todos opcionales. */
 export const vehicleFiltersSchema = z.object({

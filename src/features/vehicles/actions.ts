@@ -9,6 +9,7 @@ import { VEHICLE_VOID_ROLES, VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
 import type { ActionResult } from "@/types/action-result"
 import { Vehicle } from "@/lib/db/models/vehicle"
+import { VehicleImage } from "@/lib/db/models/vehicle-image"
 import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
 import { VehicleStatus } from "@/lib/db/models/vehicle-status"
@@ -16,17 +17,31 @@ import { Purchase } from "@/lib/db/models/purchase"
 import { Expense } from "@/lib/db/models/expense"
 import { Repair } from "@/lib/db/models/repair"
 import { Sale } from "@/lib/db/models/sale"
+import {
+  deleteVehicleImageObject,
+  uploadVehicleImageObject,
+} from "@/lib/supabase/vehicle-image-storage.server"
 import { getBlockingPaymentsForSources } from "@/features/payments/queries"
 import { toMinorUnits } from "@/lib/money"
 import { getVehicleByCode } from "./queries"
 import {
   changeAskingPriceSchema,
   changeVehicleStatusSchema,
+  deleteVehicleImageSchema,
+  uploadVehicleImageSchema,
   vehicleCreateSchema,
   vehicleUpdateSchema,
   voidVehicleSchema,
   type VehicleInput,
 } from "./schema"
+import {
+  canAddVehicleImage,
+  isSupportedVehicleImageMimeType,
+  isSupportedVehicleImageSize,
+  VEHICLE_IMAGE_MAX_ACTIVE,
+  VEHICLE_IMAGE_MAX_BYTES_MB,
+  vehicleImageExtensionFromMimeType,
+} from "./domain"
 import type { VehicleDetailDTO } from "./types"
 
 /**
@@ -40,7 +55,10 @@ import type { VehicleDetailDTO } from "./types"
 
 const UNAUTHORIZED = "No tienes autorización para realizar esta acción."
 const NOT_FOUND = "No se encontró el vehículo indicado."
+const IMAGE_NOT_FOUND = "No se encontró la imagen indicada."
 const DUPLICATE_KEY_CODE = 11000
+const IMAGE_LIMIT_MESSAGE = `Cada vehículo admite como máximo ${VEHICLE_IMAGE_MAX_ACTIVE} imágenes activas.`
+const IMAGE_SIZE_MESSAGE = `Cada imagen debe pesar como máximo ${VEHICLE_IMAGE_MAX_BYTES_MB} MB.`
 
 function isDuplicateKeyError(error: unknown): error is { code: number; keyPattern?: Record<string, unknown> } {
   return (
@@ -64,6 +82,10 @@ function userObjectId(id: string): Types.ObjectId | null {
 function revalidateVehicle(code?: string) {
   revalidatePath("/vehiculos")
   if (code) revalidatePath(`/vehiculos/${code}`)
+}
+
+function imageFieldError(message: string) {
+  return fail(message, { image: [message] })
 }
 
 /** Valida que el modelo pertenezca a la marca y que ambos estén activos. */
@@ -179,6 +201,60 @@ function toDocumentFields(data: VehicleInput, makeId: Types.ObjectId, modelId: T
     askingPrice: data.askingPrice !== undefined ? toMinorUnits(data.askingPrice) : null,
     notes: data.notes ?? null,
   }
+}
+
+function parseVehicleImageFile(fileValue: unknown):
+  | { ok: true; file: File; mimeType: string; extension: string }
+  | { ok: false; result: ActionResult<never> } {
+  if (typeof File === "undefined" || !(fileValue instanceof File)) {
+    return { ok: false, result: imageFieldError("Selecciona una imagen para subir.") }
+  }
+
+  const mimeType = String(fileValue.type ?? "").trim().toLowerCase()
+  if (!isSupportedVehicleImageMimeType(mimeType)) {
+    return {
+      ok: false,
+      result: imageFieldError("Solo se admiten imágenes JPEG, PNG o WebP."),
+    }
+  }
+
+  if (!isSupportedVehicleImageSize(fileValue.size)) {
+    return { ok: false, result: imageFieldError(IMAGE_SIZE_MESSAGE) }
+  }
+
+  const extension = vehicleImageExtensionFromMimeType(mimeType)
+  if (!extension) {
+    return {
+      ok: false,
+      result: imageFieldError("No se pudo determinar una extensión válida para la imagen."),
+    }
+  }
+
+  return { ok: true, file: fileValue, mimeType, extension }
+}
+
+async function countActiveVehicleImages(vehicleId: Types.ObjectId) {
+  return VehicleImage.countDocuments({ vehicleId, deletedAt: null })
+}
+
+async function cleanupUploadedVehicleImage(bucket: string, path: string) {
+  try {
+    await deleteVehicleImageObject({ bucket, path })
+  } catch (error) {
+    console.error("[cleanupUploadedVehicleImage]", error)
+  }
+}
+
+function buildVehicleImageStoragePath(vehicleId: Types.ObjectId, imageId: Types.ObjectId, extension: string) {
+  return `vehicles/${String(vehicleId)}/${imageId.toHexString()}.${extension}`
+}
+
+async function findVehicleForImageMutation(vehicleId: string) {
+  if (!Types.ObjectId.isValid(vehicleId)) return null
+
+  return Vehicle.findById(vehicleId)
+    .select({ _id: 1, code: 1, voidedAt: 1 })
+    .lean() as unknown as Promise<{ _id: Types.ObjectId; code: string; voidedAt: Date | null } | null>
 }
 
 export type SaveVehicleResult = ActionResult<VehicleDetailDTO> & { vinCheckDigitWarning?: boolean }
@@ -521,6 +597,131 @@ export async function voidVehicle(
   }
 }
 
+export async function uploadVehicleImage(
+  vehicleId: string,
+  fileValue: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await requireRole(VEHICLE_WRITE_ROLES)
+  if (!session) return fail(UNAUTHORIZED)
+
+  const parsed = uploadVehicleImageSchema.safeParse({ vehicleId })
+  if (!parsed.success) return failFromZodError(parsed.error)
+
+  const author = userObjectId(session.user.id)
+  if (!author) return fail(UNAUTHORIZED)
+
+  const file = parseVehicleImageFile(fileValue)
+  if (!file.ok) return file.result
+
+  try {
+    await dbConnect()
+
+    const vehicle = await findVehicleForImageMutation(parsed.data.vehicleId)
+    if (!vehicle) return fail(NOT_FOUND)
+    if (vehicle.voidedAt) {
+      return imageFieldError("No se pueden cargar imágenes en un vehículo anulado.")
+    }
+
+    const activeCount = await countActiveVehicleImages(vehicle._id)
+    if (!canAddVehicleImage(activeCount)) {
+      return imageFieldError(IMAGE_LIMIT_MESSAGE)
+    }
+
+    const imageId = new Types.ObjectId()
+    const storagePath = buildVehicleImageStoragePath(vehicle._id, imageId, file.extension)
+
+    const { bucket } = await uploadVehicleImageObject({
+      path: storagePath,
+      contentType: file.mimeType,
+      body: new Uint8Array(await file.file.arrayBuffer()),
+    })
+
+    const activeCountAfterUpload = await countActiveVehicleImages(vehicle._id)
+    if (!canAddVehicleImage(activeCountAfterUpload)) {
+      await cleanupUploadedVehicleImage(bucket, storagePath)
+      return imageFieldError(IMAGE_LIMIT_MESSAGE)
+    }
+
+    try {
+      await VehicleImage.create({
+        _id: imageId,
+        vehicleId: vehicle._id,
+        storageBucket: bucket,
+        storagePath,
+        originalFileName: file.file.name,
+        mimeType: file.mimeType,
+        byteSize: file.file.size,
+        createdBy: author,
+        deletedAt: null,
+        deletedBy: null,
+        deleteError: null,
+      })
+    } catch (error) {
+      await cleanupUploadedVehicleImage(bucket, storagePath)
+      throw error
+    }
+
+    revalidateVehicle(vehicle.code)
+    return ok({ id: imageId.toHexString() })
+  } catch (error) {
+    return failFromUnknownError(error, "uploadVehicleImage")
+  }
+}
+
+export async function deleteVehicleImage(
+  vehicleId: string,
+  imageId: string,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await requireRole(VEHICLE_WRITE_ROLES)
+  if (!session) return fail(UNAUTHORIZED)
+
+  const parsed = deleteVehicleImageSchema.safeParse({ vehicleId, imageId })
+  if (!parsed.success) return failFromZodError(parsed.error)
+
+  const author = userObjectId(session.user.id)
+  if (!author) return fail(UNAUTHORIZED)
+
+  try {
+    await dbConnect()
+
+    const vehicle = await findVehicleForImageMutation(parsed.data.vehicleId)
+    if (!vehicle) return fail(NOT_FOUND)
+
+    const current = (await VehicleImage.findOne({
+      _id: parsed.data.imageId,
+      vehicleId: vehicle._id,
+    }).lean()) as unknown as {
+      _id: Types.ObjectId
+      storageBucket: string
+      storagePath: string
+      deletedAt: Date | null
+    } | null
+
+    if (!current) return fail(IMAGE_NOT_FOUND)
+    if (current.deletedAt) {
+      revalidateVehicle(vehicle.code)
+      return ok({ id: parsed.data.imageId })
+    }
+
+    await VehicleImage.updateOne(
+      { _id: current._id },
+      { $set: { deletedAt: new Date(), deletedBy: author, deleteError: null } },
+    )
+
+    try {
+      await deleteVehicleImageObject({ bucket: current.storageBucket, path: current.storagePath })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo eliminar la imagen de Storage."
+      await VehicleImage.updateOne({ _id: current._id }, { $set: { deleteError: message } })
+    }
+
+    revalidateVehicle(vehicle.code)
+    return ok({ id: parsed.data.imageId })
+  } catch (error) {
+    return failFromUnknownError(error, "deleteVehicleImage")
+  }
+}
+
 /** Envoltura para `useActionState`: alta o edición según venga o no el código. */
 export async function saveVehicleAction(
   _previousState: SaveVehicleResult | null,
@@ -560,4 +761,38 @@ export async function voidVehicleAction(
   formData: FormData,
 ): Promise<ActionResult<VehicleDetailDTO>> {
   return voidVehicle(code, { reason: formData.get("reason") })
+}
+
+export async function uploadVehicleImageAction(
+  vehicleId: string,
+  _previousState: ActionResult<{ ids: string[]; uploadedCount: number }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ ids: string[]; uploadedCount: number }>> {
+  const files = formData.getAll("images")
+
+  if (files.length === 0) {
+    return fail("Selecciona al menos una imagen para subir.", {
+      images: ["Selecciona al menos una imagen para subir."],
+    })
+  }
+
+  const ids: string[] = []
+  for (const file of files) {
+    const result = await uploadVehicleImage(vehicleId, file)
+    if (!result.ok) {
+      return result.fieldErrors?.image
+        ? fail(result.error, { images: result.fieldErrors.image })
+        : fail(result.error)
+    }
+    ids.push(result.data.id)
+  }
+
+  return ok({ ids, uploadedCount: ids.length })
+}
+
+export async function deleteVehicleImageAction(
+  vehicleId: string,
+  imageId: string,
+): Promise<ActionResult<{ id: string }>> {
+  return deleteVehicleImage(vehicleId, imageId)
 }

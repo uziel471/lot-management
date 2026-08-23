@@ -40,6 +40,7 @@ import {
 } from "../enums"
 import type { VehicleDetailDTO } from "../types"
 import { StatusHistory } from "./status-history"
+import { VehicleImagesSection } from "./vehicle-images-section"
 
 export function VehicleDetail({
   vehicle,
@@ -185,6 +186,13 @@ export function VehicleDetail({
               <DetailItem label="Título en poder del lote" value={vehicle.titleInHand ? "Sí" : "No"} />
             </DetailGrid>
           </DetailSection>
+
+          <VehicleImagesSection
+            vehicleId={vehicle.id}
+            canWrite={canWrite}
+            isVoided={vehicle.isVoided}
+            images={vehicle.images}
+          />
 
           <DetailSection
             title="Notas"

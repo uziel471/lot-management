@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest"
 import {
+  canAddVehicleImage,
   daysInInventory,
   describeVehicle,
   hasValidVinCheckDigit,
+  isSupportedVehicleImageMimeType,
+  isSupportedVehicleImageSize,
   isValidVehicleYear,
   isValidVinFormat,
   normalizeVin,
+  vehicleImageExtensionFromMimeType,
 } from "./domain"
 
 // VIN de ejemplo con dígito verificador válido (posición 9 = "X"),
@@ -110,5 +114,32 @@ describe("isValidVehicleYear", () => {
 
   it("rechaza dos años después del actual", () => {
     expect(isValidVehicleYear(2028, today)).toBe(false)
+  })
+})
+
+describe("vehicle image rules", () => {
+  it("acepta MIME types soportados y rechaza otros", () => {
+    expect(isSupportedVehicleImageMimeType("image/jpeg")).toBe(true)
+    expect(isSupportedVehicleImageMimeType("image/png")).toBe(true)
+    expect(isSupportedVehicleImageMimeType("application/pdf")).toBe(false)
+  })
+
+  it("deriva la extensión desde el MIME type", () => {
+    expect(vehicleImageExtensionFromMimeType("image/jpeg")).toBe("jpg")
+    expect(vehicleImageExtensionFromMimeType("image/webp")).toBe("webp")
+    expect(vehicleImageExtensionFromMimeType("application/pdf")).toBeNull()
+  })
+
+  it("acepta tamaños positivos dentro del máximo y rechaza cero o mayores", () => {
+    expect(isSupportedVehicleImageSize(1)).toBe(true)
+    expect(isSupportedVehicleImageSize(10 * 1024 * 1024)).toBe(true)
+    expect(isSupportedVehicleImageSize(0)).toBe(false)
+    expect(isSupportedVehicleImageSize(10 * 1024 * 1024 + 1)).toBe(false)
+  })
+
+  it("solo permite agregar imágenes mientras no se alcance el límite", () => {
+    expect(canAddVehicleImage(0)).toBe(true)
+    expect(canAddVehicleImage(39)).toBe(true)
+    expect(canAddVehicleImage(40)).toBe(false)
   })
 })

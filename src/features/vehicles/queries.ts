@@ -3,16 +3,19 @@ import { Types } from "mongoose"
 import { dbConnect } from "@/lib/db/client"
 import { requireRole } from "@/lib/auth/dal"
 import { VEHICLE_READ_ROLES } from "@/lib/auth/permissions"
+import { VehicleImage } from "@/lib/db/models/vehicle-image"
 import { Vehicle } from "@/lib/db/models/vehicle"
 import { Make } from "@/lib/db/models/make"
 import { VehicleModel } from "@/lib/db/models/model"
 import { VehicleStatus } from "@/lib/db/models/vehicle-status"
+import { getVehicleImageRenderableUrl } from "@/lib/supabase/vehicle-image-storage.server"
 import type { Money } from "@/types/money"
 import { daysInInventory, describeVehicle, hasValidVinCheckDigit } from "./domain"
 import type {
   StatusHistoryEntryDTO,
   VehicleDetailDTO,
   VehicleFilters,
+  VehicleImageDTO,
   VehicleListItemDTO,
   VehicleOption,
 } from "./types"
@@ -68,6 +71,21 @@ type VehicleLean = {
   voidReason: string | null
 }
 
+type VehicleImageLean = {
+  _id: Types.ObjectId
+  vehicleId: Types.ObjectId
+  storageBucket: string
+  storagePath: string
+  originalFileName: string
+  mimeType: string
+  byteSize: number
+  createdBy: Types.ObjectId
+  createdAt: Date
+  deletedAt: Date | null
+  deletedBy: Types.ObjectId | null
+  deleteError: string | null
+}
+
 async function namesById(
   model: { find: typeof Make.find },
   ids: Types.ObjectId[],
@@ -91,6 +109,46 @@ async function userNamesById(ids: Types.ObjectId[]): Promise<Map<string, string>
     .project({ name: 1 })
     .toArray()) as unknown as { _id: unknown; name: string }[]
   return new Map(documents.map((document) => [String(document._id), document.name]))
+}
+
+async function listVehicleImagesForVehicle(
+  vehicleId: Types.ObjectId,
+  includeDeleted = false,
+): Promise<VehicleImageDTO[]> {
+  const query: Record<string, unknown> = { vehicleId }
+  if (!includeDeleted) query.deletedAt = null
+
+  const images = (await VehicleImage.find(query)
+    .sort({ createdAt: -1, _id: -1 })
+    .lean()) as unknown as VehicleImageLean[]
+
+  const userNames = await userNamesById(images.map((image) => image.createdBy))
+
+  return Promise.all(
+    images.map(async (image) => ({
+      id: String(image._id),
+      vehicleId: String(image.vehicleId),
+      storageBucket: image.storageBucket,
+      storagePath: image.storagePath,
+      originalFileName: image.originalFileName,
+      mimeType: image.mimeType,
+      byteSize: image.byteSize,
+      createdBy: String(image.createdBy),
+      createdByName: userNames.get(String(image.createdBy)) ?? null,
+      createdAt: image.createdAt.toISOString(),
+      deletedAt: image.deletedAt ? image.deletedAt.toISOString() : null,
+      deletedBy: image.deletedBy ? String(image.deletedBy) : null,
+      deleteError: image.deleteError,
+      active: image.deletedAt === null,
+      renderUrl: await getVehicleImageRenderableUrl({
+        bucket: image.storageBucket,
+        path: image.storagePath,
+      }).catch((error) => {
+        console.error("[vehicleImageRenderableUrl]", error)
+        return ""
+      }),
+    })),
+  )
 }
 
 function toMoney(amountInCents: number | null): Money | null {
@@ -230,7 +288,10 @@ export async function getVehicleByCode(code: string): Promise<VehicleDetailDTO |
     ...(vehicle.voidedBy ? [vehicle.voidedBy] : []),
     ...vehicle.statusHistory.map((entry) => entry.changedBy),
   ]
-  const userNames = await userNamesById(userIds)
+  const [userNames, images] = await Promise.all([
+    userNamesById(userIds),
+    listVehicleImagesForVehicle(vehicle._id),
+  ])
 
   const statusHistory: StatusHistoryEntryDTO[] = [...vehicle.statusHistory]
     .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime())
@@ -263,6 +324,7 @@ export async function getVehicleByCode(code: string): Promise<VehicleDetailDTO |
     lotLocation: vehicle.lotLocation,
     notes: vehicle.notes,
     statusHistory,
+    images,
     vinCheckDigitWarning: Boolean(vehicle.vin) && !hasValidVinCheckDigit(vehicle.vin!),
     createdBy: String(vehicle.createdBy),
     createdByName: userNames.get(String(vehicle.createdBy)) ?? null,
@@ -274,6 +336,15 @@ export async function getVehicleByCode(code: string): Promise<VehicleDetailDTO |
     voidedBy: vehicle.voidedBy ? String(vehicle.voidedBy) : null,
     voidReason: vehicle.voidReason,
   }
+}
+
+export async function listVehicleImages(vehicleId: string): Promise<VehicleImageDTO[]> {
+  const session = await requireRole(VEHICLE_READ_ROLES)
+  if (!session) return []
+  if (!Types.ObjectId.isValid(vehicleId)) return []
+
+  await dbConnect()
+  return listVehicleImagesForVehicle(new Types.ObjectId(vehicleId))
 }
 
 /**
