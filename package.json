@@ -17,6 +17,8 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@better-auth/mongo-adapter": "^1.7.1",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
     "better-auth": "^1.7.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
