@@ -154,3 +154,5 @@ export const PAYMENT_VOID_ROLES: readonly Role[] = ["admin"]
 export const SALE_READ_ROLES: readonly Role[] = ["admin", "capturista", "lectura"]
 export const SALE_WRITE_ROLES: readonly Role[] = ["admin", "capturista"]
 export const SALE_VOID_ROLES: readonly Role[] = ["admin"]
+
+export const DASHBOARD_READ_ROLES: readonly Role[] = ["admin", "lectura"]

@@ -1,15 +1,24 @@
-import { verifySession } from "@/lib/auth/dal"
+import { unauthorized } from "next/navigation"
+import { ExecutiveDashboard } from "@/features/dashboard/components/executive-dashboard"
+import { getExecutiveDashboard } from "@/features/dashboard/queries"
 
-export default async function DashboardPage() {
-  const { user } = await verifySession()
+type DashboardPageProps = {
+  searchParams: Promise<{
+    preset?: string
+    startDate?: string
+    endDate?: string
+  }>
+}
 
-  return (
-    <div className="flex flex-col gap-2">
-      <h1 className="text-2xl font-semibold">Panel</h1>
-      <p className="text-muted-foreground">
-        Sesión activa como <strong>{user.name}</strong> ({user.email}), rol{" "}
-        <strong>{user.role}</strong>.
-      </p>
-    </div>
-  )
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams
+  const dashboard = await getExecutiveDashboard({
+    preset: params.preset,
+    startDate: params.startDate,
+    endDate: params.endDate,
+  })
+
+  if (dashboard === null) unauthorized()
+
+  return <ExecutiveDashboard dashboard={dashboard} />
 }

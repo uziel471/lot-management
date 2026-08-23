@@ -87,6 +87,7 @@ vehicleSchema.index(
 )
 vehicleSchema.index({ statusId: 1, dateReceived: -1 })
 vehicleSchema.index({ makeId: 1, modelId: 1 })
+vehicleSchema.index({ voidedAt: 1, dateReceived: -1 })
 
 export type VehicleDocument = InferSchemaType<typeof vehicleSchema>
 
