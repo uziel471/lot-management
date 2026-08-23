@@ -2,6 +2,7 @@ import type { Role } from "@/types/role"
 
 export type AppNavIcon =
   | "dashboard"
+  | "reports"
   | "vehicles"
   | "purchases"
   | "payments"
@@ -17,11 +18,13 @@ export type AppNavigationItem = {
   label: string
   icon: AppNavIcon
   adminOnly?: boolean
+  roles?: readonly Role[]
   match?: "exact" | "prefix"
 }
 
 const APP_NAVIGATION: AppNavigationItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard", match: "exact" },
+  { href: "/reportes", label: "Reportes", icon: "reports", roles: ["admin", "lectura"], match: "prefix" },
   { href: "/vehiculos", label: "Vehiculos", icon: "vehicles", match: "prefix" },
   { href: "/compras", label: "Compras", icon: "purchases", match: "prefix" },
   { href: "/ventas", label: "Ventas", icon: "sales", match: "prefix" },
@@ -34,5 +37,5 @@ const APP_NAVIGATION: AppNavigationItem[] = [
 ]
 
 export function getAppNavigation(role: Role): AppNavigationItem[] {
-  return APP_NAVIGATION.filter((item) => !item.adminOnly || role === "admin")
+  return APP_NAVIGATION.filter((item) => (!item.adminOnly || role === "admin") && (!item.roles || item.roles.includes(role)))
 }

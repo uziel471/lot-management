@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   CarFront,
   CircleUserRound,
+  FileBarChart2,
   LayoutDashboard,
   Landmark,
   ReceiptText,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils"
 
 const iconMap: Record<AppNavIcon, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
+  reports: FileBarChart2,
   vehicles: CarFront,
   purchases: ShoppingCart,
   payments: Landmark,
