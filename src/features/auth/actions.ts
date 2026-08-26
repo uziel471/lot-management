@@ -65,7 +65,17 @@ export async function signOutAction(): Promise<void> {
   redirect("/login")
 }
 
-export type ChangeOwnPasswordState = { error?: string; success?: boolean } | undefined
+export type ChangeOwnPasswordFieldErrors = Partial<
+  Record<"currentPassword" | "newPassword" | "confirmPassword", string[]>
+>
+
+export type ChangeOwnPasswordState =
+  | {
+      error?: string
+      success?: boolean
+      fieldErrors?: ChangeOwnPasswordFieldErrors
+    }
+  | undefined
 
 /** Cambio de contraseña propio: exige confirmar la actual y revoca las demás sesiones. */
 export async function changeOwnPasswordAction(
@@ -83,7 +93,10 @@ export async function changeOwnPasswordAction(
   })
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
+    return {
+      error: parsed.error.issues[0]?.message ?? "Datos invalidos.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    }
   }
 
   const auth = await getAuth()

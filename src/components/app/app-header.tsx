@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { Building2, LogOut, Menu } from "lucide-react"
+import { Building2, CircleUserRound, LogOut, Menu } from "lucide-react"
 
 import { AppNavLinks } from "@/components/app/app-nav-links"
 import type { AppNavigationItem } from "@/components/app/app-navigation"
@@ -66,10 +66,13 @@ export function AppHeader({
                   <AppNavLinks items={items} />
                 </Suspense>
                 <div className="mt-auto flex flex-col gap-3 border-t pt-4">
-                  <div className="text-sm">
+                  <Link
+                    href="/cuenta"
+                    className="rounded-lg text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
                     <p className="font-medium">{userName}</p>
                     <p className="text-muted-foreground">{userRole}</p>
-                  </div>
+                  </Link>
                   <form action={signOutAction}>
                     <Button type="submit" variant="outline" size="sm" className="w-full">
                       <LogOut className="size-4" />
@@ -92,9 +95,11 @@ export function AppHeader({
         </div>
 
         <div className="hidden items-center gap-3 text-sm md:flex">
-          <span className="text-muted-foreground">
-            {userName} · {userRole}
-          </span>
+          <Button variant="ghost" size="sm" render={<Link href="/cuenta" />}>
+            <CircleUserRound className="size-4" />
+            <span className="max-w-52 truncate">{userName}</span>
+            <span className="text-muted-foreground">{userRole}</span>
+          </Button>
           <form action={signOutAction}>
             <Button type="submit" variant="outline" size="sm">
               <LogOut className="size-4" />
