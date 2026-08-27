@@ -44,9 +44,11 @@ function isActive(pathname: string, item: AppNavigationItem) {
 export function AppNavLinks({
   items,
   className,
+  onNavigate,
 }: {
   items: AppNavigationItem[]
   className?: string
+  onNavigate?: () => void
 }) {
   const pathname = usePathname()
 
@@ -60,6 +62,7 @@ export function AppNavLinks({
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
