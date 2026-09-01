@@ -51,7 +51,7 @@ Current app assessment:
 
 ### Typography
 
-- Use the existing sans font from the app theme for all UI text.
+- Use Montserrat as the required sans font from the app theme for all standard UI text.
 - Use `font-mono` for codes, VINs, stock numbers, sequence identifiers, internal IDs, and other technical identifiers.
 - Page titles should generally use `text-2xl font-semibold tracking-tight`.
 - Section and card titles should generally use `text-base font-semibold` or the existing `CardTitle` scale.
