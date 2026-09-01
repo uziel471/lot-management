@@ -8,6 +8,7 @@ import {
   FileBarChart2,
   LayoutDashboard,
   Landmark,
+  FileText,
   ReceiptText,
   BadgeDollarSign,
   ShoppingCart,
@@ -30,6 +31,7 @@ const iconMap: Record<AppNavIcon, React.ComponentType<{ className?: string }>> =
   sales: BadgeDollarSign,
   catalogs: Tags,
   users: Users,
+  manual: FileText,
   account: CircleUserRound,
 }
 

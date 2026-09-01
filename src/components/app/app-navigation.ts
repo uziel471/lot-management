@@ -11,6 +11,7 @@ export type AppNavIcon =
   | "sales"
   | "catalogs"
   | "users"
+  | "manual"
   | "account"
 
 export type AppNavigationItem = {
@@ -33,6 +34,7 @@ const APP_NAVIGATION: AppNavigationItem[] = [
   { href: "/gastos", label: "Gastos", icon: "expenses", match: "prefix" },
   { href: "/catalogos", label: "Catalogos", icon: "catalogs", match: "prefix" },
   { href: "/usuarios", label: "Usuarios", icon: "users", adminOnly: true, match: "prefix" },
+  { href: "/manual/usuario.pdf", label: "Manual", icon: "manual", match: "exact" },
   { href: "/cuenta", label: "Mi cuenta", icon: "account", match: "prefix" },
 ]
 
