@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { PAYMENT_VOID_ROLES, PAYMENT_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValuesWithIndexedGroups, normalizeUsdExchangeRate } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { Payment } from "@/lib/db/models/payment"
 import { PaymentCreationLock } from "@/lib/db/models/payment-creation-lock"
@@ -319,31 +320,10 @@ export async function savePaymentAction(
   _previousState: ActionResult<PaymentDetailDTO> | null,
   formData: FormData,
 ): Promise<ActionResult<PaymentDetailDTO>> {
-  const input: Record<string, unknown> = {}
-  const applications: Array<Record<string, unknown>> = []
-  const evidence: Array<Record<string, unknown>> = []
-
-  for (const [key, value] of formData.entries()) {
-    const applicationMatch = key.match(/^applications\.(\d+)\.(.+)$/)
-    if (applicationMatch) {
-      const index = Number(applicationMatch[1])
-      applications[index] ??= {}
-      applications[index][applicationMatch[2]] = value
-      continue
-    }
-    const evidenceMatch = key.match(/^evidence\.(\d+)\.(.+)$/)
-    if (evidenceMatch) {
-      const index = Number(evidenceMatch[1])
-      evidence[index] ??= {}
-      evidence[index][evidenceMatch[2]] = value
-      continue
-    }
-    input[key] = value
-  }
-
-  input.applications = applications.filter((application) => Object.keys(application).length > 0)
-  input.evidence = evidence.filter((entry) => Object.keys(entry).length > 0)
-  return createPayment(input as PaymentInput)
+  const input = formDataToValuesWithIndexedGroups(formData, ["applications", "evidence"])
+  const normalized = normalizeUsdExchangeRate(input)
+  const result = await createPayment(normalized as PaymentInput)
+  return result.ok ? result : { ...result, values: normalized }
 }
 
 export async function voidPaymentAction(

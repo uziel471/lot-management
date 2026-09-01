@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormSection } from "@/components/shared/form-section"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
+import { valueAsNumber, valueAsString } from "@/lib/form-values"
 import { formatMoney } from "@/lib/money"
 import type { ActionResult } from "@/types/action-result"
 import { createSaleSnapshot } from "../domain"
@@ -48,6 +49,13 @@ export function SaleForm({
   )
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
+
+  useEffect(() => {
+    if (!state || state.ok || !state.values) return
+    setVehicleId(valueAsString(state.values.vehicleId, defaultVehicleId ?? ""))
+    setSalePriceUsd(valueAsNumber(state.values.salePriceUsd, 0))
+  }, [state, defaultVehicleId])
   const preview = previews[vehicleId]
   const salePreview = useMemo(() => {
     if (!preview) return null
@@ -77,34 +85,34 @@ export function SaleForm({
           </Select>
         </Field>
         <Field label="Comprador" required error={fieldErrors.buyerName}>
-          <Input name="buyerName" required />
+          <Input name="buyerName" defaultValue={valueAsString(formValues.buyerName)} required />
         </Field>
         <Field label="Teléfono" error={fieldErrors.buyerPhone}>
-          <Input name="buyerPhone" />
+          <Input name="buyerPhone" defaultValue={valueAsString(formValues.buyerPhone)} />
         </Field>
         <Field label="Correo" error={fieldErrors.buyerEmail}>
-          <Input name="buyerEmail" type="email" />
+          <Input name="buyerEmail" type="email" defaultValue={valueAsString(formValues.buyerEmail)} />
         </Field>
       </FormSection>
 
       <FormSection title="Datos de venta" description="El sistema asigna el código al guardar y congela el snapshot financiero actual.">
         <Field label="Fecha de venta" required error={fieldErrors.saleDate}>
-          <Input name="saleDate" type="date" required />
+          <Input name="saleDate" type="date" defaultValue={valueAsString(formValues.saleDate)} required />
         </Field>
         <Field label="Precio de venta (USD)" required error={fieldErrors.salePriceUsd}>
-          <MoneyInput name="salePriceUsd" onChangeCents={setSalePriceUsd} />
+          <MoneyInput name="salePriceUsd" valueCents={salePriceUsd} onChangeCents={setSalePriceUsd} />
         </Field>
         <Field label="Términos" error={fieldErrors.terms}>
-          <Input name="terms" />
+          <Input name="terms" defaultValue={valueAsString(formValues.terms)} />
         </Field>
         <Field label="Referencia" error={fieldErrors.referenceNumber}>
-          <Input name="referenceNumber" />
+          <Input name="referenceNumber" defaultValue={valueAsString(formValues.referenceNumber)} />
         </Field>
       </FormSection>
 
       <FormSection title="Notas" description="Observaciones visibles para el equipo sobre el cierre de la venta.">
         <Field label="Notas" error={fieldErrors.notes} className="sm:col-span-2">
-          <Textarea name="notes" rows={4} />
+          <Textarea name="notes" rows={4} defaultValue={valueAsString(formValues.notes)} />
         </Field>
       </FormSection>
 

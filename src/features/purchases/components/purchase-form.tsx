@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import type { CatalogOption } from "@/features/catalogs/types"
 import type { VehicleOption } from "@/features/vehicles/types"
+import { valueAsNumber, valueAsString } from "@/lib/form-values"
 import { formatMoney } from "@/lib/money"
 import { savePurchaseAction, type SavePurchaseResult } from "../actions"
 import { totalOriginal, totalUsd } from "../domain"
@@ -87,6 +88,29 @@ export function PurchaseForm({
   )
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
+
+  useEffect(() => {
+    if (!state || state.ok || !state.values) return
+
+    const nextCurrency = valueAsString(state.values.currency, "USD") === "MXN" ? "MXN" : "USD"
+    setCurrency(nextCurrency)
+    setExchangeRate(nextCurrency === "USD" ? "1" : valueAsString(state.values.exchangeRate, ""))
+
+    const submittedTxType = valueAsString(state.values.txType, "initial")
+    if (TX_TYPE_OPTIONS.some((option) => option.value === submittedTxType)) {
+      setTxType(submittedTxType as typeof txType)
+    }
+
+    setComponents(
+      Object.fromEntries(
+        COST_COMPONENTS.map((component) => [
+          component.key,
+          valueAsNumber(state.values?.[component.key], 0),
+        ]),
+      ) as CostComponents,
+    )
+  }, [state])
 
   const original = useMemo(() => totalOriginal(components, currency), [components, currency])
   const usd = useMemo(() => {
@@ -116,7 +140,7 @@ export function PurchaseForm({
         description="Captura la unidad, el proveedor y el contexto base del registro."
       >
         <Field label="Vehículo" required error={fieldErrors.vehicleId}>
-          <Select name="vehicleId" defaultValue={defaultVehicleId ?? ""} required>
+          <Select name="vehicleId" defaultValue={valueAsString(formValues.vehicleId, defaultVehicleId ?? "")} required>
             <option value="">Selecciona un vehículo</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -127,7 +151,7 @@ export function PurchaseForm({
         </Field>
 
         <Field label="Proveedor" required error={fieldErrors.vendorId}>
-          <Select name="vendorId" defaultValue="" required>
+          <Select name="vendorId" defaultValue={valueAsString(formValues.vendorId)} required>
             <option value="">Selecciona un proveedor</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
@@ -138,11 +162,11 @@ export function PurchaseForm({
         </Field>
 
         <Field label="Fecha de compra" required error={fieldErrors.purchaseDate}>
-          <Input name="purchaseDate" type="date" required />
+          <Input name="purchaseDate" type="date" defaultValue={valueAsString(formValues.purchaseDate)} required />
         </Field>
 
         <Field label="Origen" required error={fieldErrors.sourceType}>
-          <Select name="sourceType" defaultValue="" required>
+          <Select name="sourceType" defaultValue={valueAsString(formValues.sourceType)} required>
             <option value="">Selecciona un origen</option>
             {SOURCE_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -174,7 +198,7 @@ export function PurchaseForm({
             error={fieldErrors.correctsPurchaseId}
             help="Solo aparecen las compras anuladas de este vehículo que aún no tienen corrección."
           >
-            <Select name="correctsPurchaseId" defaultValue="" required>
+            <Select name="correctsPurchaseId" defaultValue={valueAsString(formValues.correctsPurchaseId)} required>
               <option value="">Selecciona la compra anulada</option>
               {correctionTargets.map((target) => (
                 <option key={target.id} value={target.id}>
@@ -212,7 +236,7 @@ export function PurchaseForm({
             name="exchangeRate"
             value={exchangeRate}
             onChange={(event) => setExchangeRate(event.target.value)}
-            disabled={currency === "USD"}
+            readOnly={currency === "USD"}
             required
           />
         </Field>
@@ -236,6 +260,7 @@ export function PurchaseForm({
           >
             <MoneyInput
               name={component.key}
+              valueCents={components[component.key] ?? 0}
               onChangeCents={(cents) => handleComponentChange(component.key, cents)}
             />
           </Field>
@@ -260,7 +285,7 @@ export function PurchaseForm({
         description="Datos operativos para conciliar la compra y ubicar su soporte documental."
       >
         <Field label="Forma de pago" error={fieldErrors.paymentMethod}>
-          <Select name="paymentMethod" defaultValue="">
+          <Select name="paymentMethod" defaultValue={valueAsString(formValues.paymentMethod)}>
             <option value="">Sin especificar</option>
             {PAYMENT_METHOD_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -271,11 +296,11 @@ export function PurchaseForm({
         </Field>
 
         <Field label="Número de referencia" error={fieldErrors.referenceNumber}>
-          <Input name="referenceNumber" />
+          <Input name="referenceNumber" defaultValue={valueAsString(formValues.referenceNumber)} />
         </Field>
 
         <Field label="Número de lote" error={fieldErrors.lotNumber}>
-          <Input name="lotNumber" />
+          <Input name="lotNumber" defaultValue={valueAsString(formValues.lotNumber)} />
         </Field>
       </FormSection>
 
@@ -285,7 +310,7 @@ export function PurchaseForm({
         contentClassName="grid gap-4"
       >
         <Field label="Notas" error={fieldErrors.notes}>
-          <Textarea name="notes" rows={3} />
+          <Textarea name="notes" rows={3} defaultValue={valueAsString(formValues.notes)} />
         </Field>
       </FormSection>
 

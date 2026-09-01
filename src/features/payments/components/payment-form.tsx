@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { FormSection } from "@/components/shared/form-section"
@@ -13,13 +13,17 @@ import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import type { CatalogOption } from "@/features/catalogs/types"
+import { valueAsNumber, valueAsString } from "@/lib/form-values"
 import { formatMoney } from "@/lib/money"
 import { savePaymentAction } from "../actions"
 import { paymentTotalUsd } from "../domain"
 import { PAYMENT_EVIDENCE_TYPE_LABELS, PAYMENT_EVIDENCE_TYPE_OPTIONS, PAYMENT_METHOD_OPTIONS, PAYMENT_SOURCE_TYPE_LABELS } from "../enums"
 import type { PaymentDetailDTO, SourcePayableOptionDTO } from "../types"
 
-type FormResult = { ok: true; data: PaymentDetailDTO } | { ok: false; error: string; fieldErrors?: Record<string, string[]> } | null
+type FormResult =
+  | { ok: true; data: PaymentDetailDTO }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]>; values?: Record<string, unknown> }
+  | null
 
 type DraftApplication = {
   sourceType: SourcePayableOptionDTO["type"]
@@ -61,7 +65,34 @@ export function PaymentForm({
   }, null)
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
   const selectedKeys = new Set(applications.map((application) => `${application.sourceType}:${application.sourceId}`))
+
+  useEffect(() => {
+    if (!state || state.ok || !state.values) return
+
+    const nextCurrency = valueAsString(state.values.currency, "USD") === "MXN" ? "MXN" : "USD"
+    setCurrency(nextCurrency)
+    setExchangeRate(nextCurrency === "USD" ? "1" : valueAsString(state.values.exchangeRate, ""))
+    setAmount(valueAsNumber(state.values.amount, 0))
+
+    const submittedApplications: unknown[] = Array.isArray(state.values.applications) ? state.values.applications : []
+    setApplications(
+      submittedApplications
+        .map((entry) => {
+          const value = entry as Record<string, unknown>
+          const sourceType = valueAsString(value.sourceType)
+          const sourceId = valueAsString(value.sourceId)
+          if (!sourceType || !sourceId) return null
+          return {
+            sourceType: sourceType as DraftApplication["sourceType"],
+            sourceId,
+            appliedAmount: valueAsNumber(value.appliedAmount, 0),
+          }
+        })
+        .filter((entry): entry is DraftApplication => Boolean(entry)),
+    )
+  }, [state])
 
   const availableSources = useMemo(() => {
     return payableSources.filter((source) => {
@@ -131,11 +162,11 @@ export function PaymentForm({
 
       <FormSection title="Datos del pago" description="Fecha, método y proveedor operativo cuando aplica.">
         <Field label="Fecha de pago" required error={fieldErrors.paymentDate}>
-          <Input name="paymentDate" type="date" required />
+          <Input name="paymentDate" type="date" defaultValue={valueAsString(formValues.paymentDate)} required />
         </Field>
 
         <Field label="Método" required error={fieldErrors.method}>
-          <Select name="method" defaultValue="" required>
+          <Select name="method" defaultValue={valueAsString(formValues.method)} required>
             <option value="">Selecciona un método</option>
             {PAYMENT_METHOD_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -146,7 +177,7 @@ export function PaymentForm({
         </Field>
 
         <Field label="Proveedor" error={fieldErrors.providerId}>
-          <Select name="providerId" defaultValue="">
+          <Select name="providerId" defaultValue={valueAsString(formValues.providerId)}>
             <option value="">Sin proveedor explícito</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
@@ -170,13 +201,13 @@ export function PaymentForm({
             name="exchangeRate"
             value={exchangeRate}
             onChange={(event) => setExchangeRate(event.target.value)}
-            disabled={currency === "USD"}
+            readOnly={currency === "USD"}
             required
           />
         </Field>
 
         <Field label="Monto del pago" required error={fieldErrors.amount}>
-          <MoneyInput name="amount" onChangeCents={setAmount} />
+          <MoneyInput name="amount" valueCents={amount} onChangeCents={setAmount} />
         </Field>
 
         <div className="rounded-lg border p-4">
@@ -306,7 +337,7 @@ export function PaymentForm({
                             <div className="min-w-28">
                               <MoneyInput
                                 name={`applications.${index}.appliedAmount`}
-                                defaultValueCents={application.appliedAmount}
+                                valueCents={application.appliedAmount}
                                 onChangeCents={(cents) => updateApplicationAmount(index, cents)}
                               />
                             </div>
@@ -342,13 +373,16 @@ export function PaymentForm({
 
       <FormSection title="Referencias, evidencia y notas" description="Metadatos consultables del pago, sin adjuntos binarios.">
         <Field label="Referencia" error={fieldErrors.referenceNumber}>
-          <Input name="referenceNumber" />
+          <Input name="referenceNumber" defaultValue={valueAsString(formValues.referenceNumber)} />
         </Field>
         <Field label="Cuenta o etiqueta" error={fieldErrors.accountLabel}>
-          <Input name="accountLabel" />
+          <Input name="accountLabel" defaultValue={valueAsString(formValues.accountLabel)} />
         </Field>
         <Field label="Tipo de evidencia">
-          <Select name="evidence.0.type" defaultValue="">
+          <Select
+            name="evidence.0.type"
+            defaultValue={valueAsString((Array.isArray(formValues.evidence) ? formValues.evidence[0] : undefined) && (formValues.evidence as Array<Record<string, unknown>>)[0]?.type)}
+          >
             <option value="">Sin evidencia</option>
             {PAYMENT_EVIDENCE_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -358,14 +392,20 @@ export function PaymentForm({
           </Select>
         </Field>
         <Field label="Etiqueta de evidencia">
-          <Input name="evidence.0.label" />
+          <Input
+            name="evidence.0.label"
+            defaultValue={valueAsString((Array.isArray(formValues.evidence) ? formValues.evidence[0] : undefined) && (formValues.evidence as Array<Record<string, unknown>>)[0]?.label)}
+          />
         </Field>
         <Field label="Liga de evidencia">
-          <Input name="evidence.0.url" />
+          <Input
+            name="evidence.0.url"
+            defaultValue={valueAsString((Array.isArray(formValues.evidence) ? formValues.evidence[0] : undefined) && (formValues.evidence as Array<Record<string, unknown>>)[0]?.url)}
+          />
         </Field>
         <div className="sm:col-span-2">
           <Field label="Notas" error={fieldErrors.notes}>
-            <Textarea name="notes" rows={4} />
+            <Textarea name="notes" rows={4} defaultValue={valueAsString(formValues.notes)} />
           </Field>
         </div>
       </FormSection>

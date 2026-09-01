@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
@@ -41,6 +41,22 @@ export function MakeModelSelect({
   const [modelId, setModelId] = useState(defaultModelId)
   const [models, setModels] = useState<CatalogOption[]>(initialModels)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    setMakeId(defaultMakeId)
+    setModelId(defaultModelId)
+    if (!defaultMakeId) {
+      setModels([])
+      return
+    }
+    if (initialModels.length > 0) {
+      setModels(initialModels)
+      return
+    }
+    startTransition(async () => {
+      setModels(await listActiveModelsByMakeAction(defaultMakeId))
+    })
+  }, [defaultMakeId, defaultModelId, initialModels])
 
   function handleMakeChange(value: string) {
     setMakeId(value)

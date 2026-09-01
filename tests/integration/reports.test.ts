@@ -152,7 +152,11 @@ describe("reportes", () => {
     const voided = await voidPayment(voidedPayment.data.code, { reason: "Duplicado" })
     expect(voided.ok).toBe(true)
 
-    const report = await getReportResult("accounts-payable", { preset: "thisMonth" })
+    const report = await getReportResult("accounts-payable", {
+      preset: "custom",
+      startDate: "2026-08-01",
+      endDate: "2026-08-31",
+    })
     expect(report).not.toBeNull()
     if (!report) return
 

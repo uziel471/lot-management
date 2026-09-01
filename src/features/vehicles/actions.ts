@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { VEHICLE_VOID_ROLES, VEHICLE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValues } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { Vehicle } from "@/lib/db/models/vehicle"
 import { VehicleImage } from "@/lib/db/models/vehicle-image"
@@ -728,15 +729,13 @@ export async function saveVehicleAction(
   formData: FormData,
 ): Promise<SaveVehicleResult> {
   const code = String(formData.get("code") ?? "").trim()
-  const input: Record<string, unknown> = {}
-  for (const [key, value] of formData.entries()) {
-    if (key === "code") continue
-    input[key] = value
-  }
+  const input = formDataToValues(formData)
+  delete input.code
   // Los checkboxes ausentes no aparecen en el FormData: forzamos su presencia.
   if (!("titleInHand" in input)) input.titleInHand = "false"
 
-  return code ? updateVehicle(code, input) : createVehicle(input)
+  const result = code ? await updateVehicle(code, input) : await createVehicle(input)
+  return result.ok ? result : { ...result, values: input }
 }
 
 /** Envoltura de `changeVehicleStatus` para el formulario de la ficha. */

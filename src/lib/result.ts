@@ -10,8 +10,14 @@ export function ok<T>(data: T): ActionResult<T> {
 export function fail<T = never>(
   error: string,
   fieldErrors?: Record<string, string[]>,
+  values?: Record<string, unknown>,
 ): ActionResult<T> {
-  return fieldErrors ? { ok: false, error, fieldErrors } : { ok: false, error }
+  return {
+    ok: false,
+    error,
+    ...(fieldErrors ? { fieldErrors } : {}),
+    ...(values ? { values } : {}),
+  }
 }
 
 /** Mapea un ZodError a `fieldErrors`: ruta del campo -> lista de mensajes. */
@@ -28,8 +34,17 @@ export function zodErrorToFieldErrors(error: ZodError): Record<string, string[]>
 export function failFromZodError<T = never>(
   error: ZodError,
   message = "Los datos enviados no son válidos.",
+  values?: Record<string, unknown>,
 ): ActionResult<T> {
-  return fail(message, zodErrorToFieldErrors(error))
+  return fail(message, zodErrorToFieldErrors(error), values)
+}
+
+/** Agrega valores de formulario a un error recuperable sin alterar exitos. */
+export function withFormValues<T>(
+  result: ActionResult<T>,
+  values: Record<string, unknown>,
+): ActionResult<T> {
+  return result.ok ? result : { ...result, values }
 }
 
 /**

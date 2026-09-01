@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import type { CatalogOption } from "@/features/catalogs/types"
 import type { VehicleOption } from "@/features/vehicles/types"
+import { valueAsNumber, valueAsString } from "@/lib/form-values"
 import { formatMoney } from "@/lib/money"
 import { saveExpenseAction, type SaveExpenseResult } from "../actions"
 import { expenseTotalOriginal, expenseTotalUsd } from "../domain"
@@ -66,6 +67,23 @@ export function ExpenseForm({
   )
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
+
+  useEffect(() => {
+    if (!state || state.ok || !state.values) return
+
+    const nextCurrency = valueAsString(state.values.currency, "USD") === "MXN" ? "MXN" : "USD"
+    setCurrency(nextCurrency)
+    setExchangeRate(nextCurrency === "USD" ? "1" : valueAsString(state.values.exchangeRate, ""))
+    setComponents(
+      Object.fromEntries(
+        EXPENSE_COMPONENTS.map((component) => [
+          component.key,
+          valueAsNumber(state.values?.[component.key], 0),
+        ]),
+      ) as ExpenseComponents,
+    )
+  }, [state])
 
   const totalOriginal = useMemo(() => expenseTotalOriginal(components, currency), [components, currency])
   const totalUsd = useMemo(() => {
@@ -99,7 +117,7 @@ export function ExpenseForm({
         description="Define la categoría operativa y si el gasto corresponde a una unidad específica o al lote en general."
       >
         <Field label="Categoría" required error={fieldErrors.category}>
-          <Select name="category" defaultValue="" required>
+          <Select name="category" defaultValue={valueAsString(formValues.category)} required>
             <option value="">Selecciona una categoría</option>
             {EXPENSE_CATEGORY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -110,7 +128,7 @@ export function ExpenseForm({
         </Field>
 
         <Field label="Fecha del gasto" required error={fieldErrors.expenseDate}>
-          <Input name="expenseDate" type="date" required />
+          <Input name="expenseDate" type="date" defaultValue={valueAsString(formValues.expenseDate)} required />
         </Field>
       </FormSection>
 
@@ -119,7 +137,7 @@ export function ExpenseForm({
         description="El gasto puede ser general o relacionarse a una unidad. El proveedor es opcional."
       >
         <Field label="Vehículo" error={fieldErrors.vehicleId} help="Déjalo vacío para registrar un gasto general.">
-          <Select name="vehicleId" defaultValue={defaultVehicleId ?? ""}>
+          <Select name="vehicleId" defaultValue={valueAsString(formValues.vehicleId, defaultVehicleId ?? "")}>
             <option value="">Gasto general / sin vehículo</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -130,7 +148,7 @@ export function ExpenseForm({
         </Field>
 
         <Field label="Proveedor" error={fieldErrors.vendorId} help="Opcional, para servicios o compras externas.">
-          <Select name="vendorId" defaultValue="">
+          <Select name="vendorId" defaultValue={valueAsString(formValues.vendorId)}>
             <option value="">Sin proveedor</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
@@ -163,7 +181,7 @@ export function ExpenseForm({
             name="exchangeRate"
             value={exchangeRate}
             onChange={(event) => setExchangeRate(event.target.value)}
-            disabled={currency === "USD"}
+            readOnly={currency === "USD"}
             required
           />
         </Field>
@@ -172,6 +190,7 @@ export function ExpenseForm({
           <Field key={component.key} label={component.label} error={fieldErrors[component.key]}>
             <MoneyInput
               name={component.key}
+              valueCents={components[component.key] ?? 0}
               onChangeCents={(cents) => handleComponentChange(component.key, cents)}
             />
           </Field>
@@ -200,7 +219,7 @@ export function ExpenseForm({
         description="Datos operativos para conciliar el gasto y ubicarlo después."
       >
         <Field label="Forma de pago" error={fieldErrors.paymentMethod}>
-          <Select name="paymentMethod" defaultValue="">
+          <Select name="paymentMethod" defaultValue={valueAsString(formValues.paymentMethod)}>
             <option value="">Sin especificar</option>
             {PAYMENT_METHOD_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -211,7 +230,7 @@ export function ExpenseForm({
         </Field>
 
         <Field label="Referencia" error={fieldErrors.referenceNumber}>
-          <Input name="referenceNumber" />
+          <Input name="referenceNumber" defaultValue={valueAsString(formValues.referenceNumber)} />
         </Field>
       </FormSection>
 
@@ -220,7 +239,7 @@ export function ExpenseForm({
         description="Se guardan metadatos y liga externa cuando exista soporte documental."
       >
         <Field label="Tipo de evidencia" error={fieldErrors.evidenceType}>
-          <Select name="evidenceType" defaultValue="">
+          <Select name="evidenceType" defaultValue={valueAsString(formValues.evidenceType)}>
             <option value="">Sin evidencia</option>
             {EXPENSE_EVIDENCE_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -231,11 +250,11 @@ export function ExpenseForm({
         </Field>
 
         <Field label="Etiqueta o folio" error={fieldErrors.evidenceLabel}>
-          <Input name="evidenceLabel" placeholder="Ej. Factura F-1023" />
+          <Input name="evidenceLabel" defaultValue={valueAsString(formValues.evidenceLabel)} placeholder="Ej. Factura F-1023" />
         </Field>
 
         <Field label="Liga externa" error={fieldErrors.evidenceUrl} className="md:col-span-2">
-          <Input name="evidenceUrl" type="url" placeholder="https://..." />
+          <Input name="evidenceUrl" type="url" defaultValue={valueAsString(formValues.evidenceUrl)} placeholder="https://..." />
         </Field>
       </FormSection>
 
@@ -244,7 +263,7 @@ export function ExpenseForm({
         description="Observaciones operativas visibles para el equipo."
       >
         <Field label="Notas" error={fieldErrors.notes} className="md:col-span-2">
-          <Textarea name="notes" rows={4} />
+          <Textarea name="notes" rows={4} defaultValue={valueAsString(formValues.notes)} />
         </Field>
       </FormSection>
 

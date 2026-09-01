@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { CATALOG_SET_ACTIVE_ROLES, CATALOG_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValues } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { canDeactivate, canModelLiveUnderMake, canReactivate, normalizeName } from "./domain"
 import { getCatalog, type CatalogDefinition, type CatalogDocument } from "./registry"
@@ -318,11 +319,12 @@ export async function saveCatalogEntryAction(
   _previousState: ActionResult<CatalogEntryDTO> | null,
   formData: FormData,
 ): Promise<ActionResult<CatalogEntryDTO>> {
+  const values = formDataToValues(formData)
   const catalogKey = String(formData.get("catalogKey") ?? "")
   const code = String(formData.get("code") ?? "").trim()
 
   const definition = resolveCatalog(catalogKey)
-  if (!definition) return fail(UNKNOWN_CATALOG)
+  if (!definition) return fail(UNKNOWN_CATALOG, undefined, values)
 
   const input: Record<string, unknown> = {}
   for (const field of definition.fields) {
@@ -331,9 +333,11 @@ export async function saveCatalogEntryAction(
   }
   input.name = String(formData.get("name") ?? "")
 
-  return code
+  const result = code
     ? updateCatalogEntry(catalogKey, code, input)
     : createCatalogEntry(catalogKey, input)
+  const resolved = await result
+  return resolved.ok ? resolved : { ...resolved, values }
 }
 
 /** Envoltura de `setCatalogEntryActive` para los botones de la tabla. */

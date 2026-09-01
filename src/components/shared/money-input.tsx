@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Input } from "@/components/ui/input"
 
@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input"
 export function MoneyInput({
   name,
   defaultValueCents = 0,
+  valueCents,
   onChangeCents,
   className,
   ...props
@@ -32,6 +33,8 @@ export function MoneyInput({
   name: string
   /** Valor inicial en centavos. */
   defaultValueCents?: number
+  /** Valor controlado en centavos, util para rehidratar despues de errores. */
+  valueCents?: number
   /** Notifica el nuevo valor en centavos en cada cambio. */
   onChangeCents?: (cents: number) => void
 } & Omit<
@@ -39,22 +42,29 @@ export function MoneyInput({
   "name" | "defaultValue" | "onChange" | "type" | "step"
 >) {
   const [cents, setCents] = useState(defaultValueCents)
+  const controlled = valueCents !== undefined
+  const currentCents = controlled ? valueCents : cents
+
+  useEffect(() => {
+    if (!controlled) setCents(defaultValueCents)
+  }, [controlled, defaultValueCents])
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const raw = event.target.value
     const amount = raw.trim() === "" ? 0 : Math.round(Number(raw) * 100)
     const next = Number.isFinite(amount) ? amount : 0
-    setCents(next)
+    if (!controlled) setCents(next)
     onChangeCents?.(next)
   }
 
   return (
     <>
-      <input type="hidden" name={name} value={cents} />
+      <input type="hidden" name={name} value={currentCents} />
       <Input
         type="number"
         step="0.01"
-        defaultValue={defaultValueCents ? defaultValueCents / 100 : undefined}
+        value={controlled ? (currentCents ? currentCents / 100 : "") : undefined}
+        defaultValue={!controlled && defaultValueCents ? defaultValueCents / 100 : undefined}
         onChange={handleChange}
         className={className}
         {...props}

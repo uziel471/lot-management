@@ -7,7 +7,7 @@ import { getAuth } from "@/lib/auth/auth"
 import { verifySession } from "@/lib/auth/dal"
 import { loginSchema, changeOwnPasswordSchema } from "./schema"
 
-export type LoginState = { error?: string } | undefined
+export type LoginState = { error?: string; email?: string } | undefined
 
 const GENERIC_CREDENTIALS_ERROR = "Correo o contraseña incorrectos."
 
@@ -22,14 +22,15 @@ function isSafeInternalPath(path: string | undefined): path is string {
  * solicitada para redirigir a ella tras un inicio de sesión correcto.
  */
 export async function signInAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
+  const submittedEmail = String(formData.get("email") ?? "")
   const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
+    email: submittedEmail,
     password: formData.get("password"),
     next: formData.get("next") ?? undefined,
   })
 
   if (!parsed.success) {
-    return { error: GENERIC_CREDENTIALS_ERROR }
+    return { error: GENERIC_CREDENTIALS_ERROR, email: submittedEmail }
   }
 
   const { email, password, next } = parsed.data
@@ -43,16 +44,16 @@ export async function signInAction(_prevState: LoginState, formData: FormData): 
   } catch (error) {
     if (error instanceof APIError) {
       if (error.body?.code === "INVALID_EMAIL_OR_PASSWORD") {
-        return { error: GENERIC_CREDENTIALS_ERROR }
+        return { error: GENERIC_CREDENTIALS_ERROR, email: submittedEmail }
       }
       if (error.status === "FORBIDDEN") {
         // Usuario desactivado (baneado): Better Auth rechaza la
         // creación de sesión antes de que llegue aquí.
-        return { error: error.body?.message ?? "Tu cuenta está desactivada." }
+        return { error: error.body?.message ?? "Tu cuenta está desactivada.", email: submittedEmail }
       }
     }
     console.error("[signInAction]", error)
-    return { error: "Ocurrió un error inesperado. Intenta de nuevo." }
+    return { error: "Ocurrió un error inesperado. Intenta de nuevo.", email: submittedEmail }
   }
 
   redirect(isSafeInternalPath(next) ? next : "/dashboard")

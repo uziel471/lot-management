@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import { MakeModelSelect } from "@/features/catalogs/components/make-model-select"
 import type { CatalogOption } from "@/features/catalogs/types"
+import { valueAsBoolean, valueAsString } from "@/lib/form-values"
 import { saveVehicleAction, type SaveVehicleResult } from "../actions"
 import {
   BODY_STYLE_OPTIONS,
@@ -68,6 +69,7 @@ export function VehicleForm({
   )
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
 
   return (
     <form action={formAction} className="flex max-w-5xl flex-col gap-6">
@@ -98,8 +100,8 @@ export function VehicleForm({
         <div className="flex flex-col gap-1 md:col-span-2">
           <MakeModelSelect
             makes={makes}
-            defaultMakeId={entry?.makeId}
-            defaultModelId={entry?.modelId}
+            defaultMakeId={valueAsString(formValues.makeId, entry?.makeId ?? "")}
+            defaultModelId={valueAsString(formValues.modelId, entry?.modelId ?? "")}
             initialModels={initialModels}
           />
           <FieldErrors errors={fieldErrors.makeId} />
@@ -107,11 +109,11 @@ export function VehicleForm({
         </div>
 
         <Field label="Año" required error={fieldErrors.year}>
-          <Input name="year" type="number" defaultValue={entry?.year ?? ""} required />
+          <Input name="year" type="number" defaultValue={valueAsString(formValues.year, entry?.year ? String(entry.year) : "")} required />
         </Field>
 
         <Field label="Estatus" required error={fieldErrors.statusId}>
-          <Select name="statusId" defaultValue={entry?.statusId ?? ""} required>
+          <Select name="statusId" defaultValue={valueAsString(formValues.statusId, entry?.statusId ?? "")} required>
             <option value="">Selecciona un estatus</option>
             {statuses.map((status) => (
               <option key={status.id} value={status.id}>
@@ -125,7 +127,7 @@ export function VehicleForm({
           <Input
             name="dateReceived"
             type="date"
-            defaultValue={toDateInputValue(entry?.dateReceived)}
+            defaultValue={valueAsString(formValues.dateReceived, toDateInputValue(entry?.dateReceived))}
             required
           />
         </Field>
@@ -135,11 +137,11 @@ export function VehicleForm({
           error={fieldErrors.vin}
           help="17 caracteres, sin I, O ni Q. Opcional al dar de alta."
         >
-          <Input name="vin" defaultValue={entry?.vin ?? ""} maxLength={17} />
+          <Input name="vin" defaultValue={valueAsString(formValues.vin, entry?.vin ?? "")} maxLength={17} />
         </Field>
 
         <Field label="Número de inventario" error={fieldErrors.stockNumber}>
-          <Input name="stockNumber" defaultValue={entry?.stockNumber ?? ""} />
+          <Input name="stockNumber" defaultValue={valueAsString(formValues.stockNumber, entry?.stockNumber ?? "")} />
         </Field>
       </FormSection>
 
@@ -148,11 +150,11 @@ export function VehicleForm({
         description="Características físicas y mecánicas visibles durante la captura."
       >
         <Field label="Versión / trim" error={fieldErrors.trim}>
-          <Input name="trim" defaultValue={entry?.trim ?? ""} />
+          <Input name="trim" defaultValue={valueAsString(formValues.trim, entry?.trim ?? "")} />
         </Field>
 
         <Field label="Estilo de carrocería" error={fieldErrors.bodyStyle}>
-          <Select name="bodyStyle" defaultValue={entry?.bodyStyle ?? ""}>
+          <Select name="bodyStyle" defaultValue={valueAsString(formValues.bodyStyle, entry?.bodyStyle ?? "")}>
             <option value="">Sin especificar</option>
             {BODY_STYLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -163,19 +165,19 @@ export function VehicleForm({
         </Field>
 
         <Field label="Color exterior" error={fieldErrors.exteriorColor}>
-          <Input name="exteriorColor" defaultValue={entry?.exteriorColor ?? ""} />
+          <Input name="exteriorColor" defaultValue={valueAsString(formValues.exteriorColor, entry?.exteriorColor ?? "")} />
         </Field>
 
         <Field label="Color interior" error={fieldErrors.interiorColor}>
-          <Input name="interiorColor" defaultValue={entry?.interiorColor ?? ""} />
+          <Input name="interiorColor" defaultValue={valueAsString(formValues.interiorColor, entry?.interiorColor ?? "")} />
         </Field>
 
         <div className="flex gap-2 md:col-span-2">
           <Field label="Kilometraje" error={fieldErrors.mileage} className="flex-1">
-            <Input name="mileage" type="number" min={0} defaultValue={entry?.mileage ?? ""} />
+            <Input name="mileage" type="number" min={0} defaultValue={valueAsString(formValues.mileage, entry?.mileage ? String(entry.mileage) : "")} />
           </Field>
           <Field label="Unidad" error={fieldErrors.mileageUnit} className="w-36">
-            <Select name="mileageUnit" defaultValue={entry?.mileageUnit ?? ""}>
+            <Select name="mileageUnit" defaultValue={valueAsString(formValues.mileageUnit, entry?.mileageUnit ?? "")}>
               <option value="">—</option>
               {MILEAGE_UNIT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -187,7 +189,7 @@ export function VehicleForm({
         </div>
 
         <Field label="Transmisión" error={fieldErrors.transmission}>
-          <Select name="transmission" defaultValue={entry?.transmission ?? ""}>
+          <Select name="transmission" defaultValue={valueAsString(formValues.transmission, entry?.transmission ?? "")}>
             <option value="">Sin especificar</option>
             {TRANSMISSION_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -198,7 +200,7 @@ export function VehicleForm({
         </Field>
 
         <Field label="Combustible" error={fieldErrors.fuelType}>
-          <Select name="fuelType" defaultValue={entry?.fuelType ?? ""}>
+          <Select name="fuelType" defaultValue={valueAsString(formValues.fuelType, entry?.fuelType ?? "")}>
             <option value="">Sin especificar</option>
             {FUEL_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -209,7 +211,7 @@ export function VehicleForm({
         </Field>
 
         <Field label="Tracción" error={fieldErrors.drivetrain}>
-          <Select name="drivetrain" defaultValue={entry?.drivetrain ?? ""}>
+          <Select name="drivetrain" defaultValue={valueAsString(formValues.drivetrain, entry?.drivetrain ?? "")}>
             <option value="">Sin especificar</option>
             {DRIVETRAIN_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -222,7 +224,7 @@ export function VehicleForm({
 
       <FormSection title="Título" description="Situación documental del título de propiedad.">
         <Field label="Situación del título" error={fieldErrors.titleStatus}>
-          <Select name="titleStatus" defaultValue={entry?.titleStatus ?? ""}>
+          <Select name="titleStatus" defaultValue={valueAsString(formValues.titleStatus, entry?.titleStatus ?? "")}>
             <option value="">Sin especificar</option>
             {TITLE_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -233,7 +235,7 @@ export function VehicleForm({
         </Field>
 
         <Field label="Número de título" error={fieldErrors.titleNumber}>
-          <Input name="titleNumber" defaultValue={entry?.titleNumber ?? ""} />
+          <Input name="titleNumber" defaultValue={valueAsString(formValues.titleNumber, entry?.titleNumber ?? "")} />
         </Field>
 
         <div className="flex items-center gap-2 md:col-span-2">
@@ -241,7 +243,7 @@ export function VehicleForm({
             id="title-in-hand"
             type="checkbox"
             name="titleInHand"
-            defaultChecked={entry?.titleInHand ?? false}
+            defaultChecked={valueAsBoolean(formValues.titleInHand, entry?.titleInHand ?? false)}
             className="size-4 accent-primary"
           />
           <Label htmlFor="title-in-hand">Título en poder del lote</Label>
@@ -253,11 +255,11 @@ export function VehicleForm({
         description="Seguimiento operativo dentro del lote."
       >
         <Field label="Fecha de publicación" error={fieldErrors.dateListed}>
-          <Input name="dateListed" type="date" defaultValue={toDateInputValue(entry?.dateListed)} />
+          <Input name="dateListed" type="date" defaultValue={valueAsString(formValues.dateListed, toDateInputValue(entry?.dateListed))} />
         </Field>
 
         <Field label="Ubicación en el lote" error={fieldErrors.lotLocation}>
-          <Input name="lotLocation" defaultValue={entry?.lotLocation ?? ""} />
+          <Input name="lotLocation" defaultValue={valueAsString(formValues.lotLocation, entry?.lotLocation ?? "")} />
         </Field>
       </FormSection>
 
@@ -272,12 +274,12 @@ export function VehicleForm({
             type="number"
             min={0}
             step="0.01"
-            defaultValue={entry?.askingPrice ? entry.askingPrice.amount / 100 : ""}
+            defaultValue={valueAsString(formValues.askingPrice, entry?.askingPrice ? String(entry.askingPrice.amount / 100) : "")}
           />
         </Field>
 
         <Field label="Notas" error={fieldErrors.notes} className="md:col-span-2">
-          <Textarea name="notes" defaultValue={entry?.notes ?? ""} rows={3} />
+          <Textarea name="notes" defaultValue={valueAsString(formValues.notes, entry?.notes ?? "")} rows={3} />
         </Field>
       </FormSection>
 

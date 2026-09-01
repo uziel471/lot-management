@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import type { CatalogOption } from "@/features/catalogs/types"
 import type { VehicleOption } from "@/features/vehicles/types"
+import { valueAsNumber, valueAsString } from "@/lib/form-values"
 import { formatMoney } from "@/lib/money"
 import { saveRepairAction, type SaveRepairResult } from "../actions"
 import { repairTotalOriginal, repairTotalUsd } from "../domain"
@@ -64,6 +65,23 @@ export function RepairForm({
   )
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
+
+  useEffect(() => {
+    if (!state || state.ok || !state.values) return
+
+    const nextCurrency = valueAsString(state.values.currency, "USD") === "MXN" ? "MXN" : "USD"
+    setCurrency(nextCurrency)
+    setExchangeRate(nextCurrency === "USD" ? "1" : valueAsString(state.values.exchangeRate, ""))
+    setComponents(
+      Object.fromEntries(
+        REPAIR_COST_COMPONENTS.map((component) => [
+          component.key,
+          valueAsNumber(state.values?.[component.key], 0),
+        ]),
+      ) as RepairCostComponents,
+    )
+  }, [state])
 
   const totalOriginal = useMemo(() => repairTotalOriginal(components, currency), [components, currency])
   const totalUsd = useMemo(() => {
@@ -97,7 +115,7 @@ export function RepairForm({
         description="La reparación siempre pertenece a una unidad; el proveedor es opcional para trabajos internos."
       >
         <Field label="Vehículo" required error={fieldErrors.vehicleId}>
-          <Select name="vehicleId" defaultValue={defaultVehicleId ?? ""} required>
+          <Select name="vehicleId" defaultValue={valueAsString(formValues.vehicleId, defaultVehicleId ?? "")} required>
             <option value="">Selecciona un vehículo</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -108,7 +126,7 @@ export function RepairForm({
         </Field>
 
         <Field label="Proveedor" error={fieldErrors.vendorId} help="Déjalo vacío para una reparación interna.">
-          <Select name="vendorId" defaultValue="">
+          <Select name="vendorId" defaultValue={valueAsString(formValues.vendorId)}>
             <option value="">Interna / sin proveedor</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
@@ -124,7 +142,7 @@ export function RepairForm({
         description="Categoría operativa y fecha de apertura del trabajo."
       >
         <Field label="Categoría" required error={fieldErrors.category}>
-          <Select name="category" defaultValue="" required>
+          <Select name="category" defaultValue={valueAsString(formValues.category)} required>
             <option value="">Selecciona una categoría</option>
             {REPAIR_CATEGORY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -135,7 +153,7 @@ export function RepairForm({
         </Field>
 
         <Field label="Fecha de apertura" required error={fieldErrors.openedAt}>
-          <Input name="openedAt" type="date" required />
+          <Input name="openedAt" type="date" defaultValue={valueAsString(formValues.openedAt)} required />
         </Field>
       </FormSection>
 
@@ -161,7 +179,7 @@ export function RepairForm({
             name="exchangeRate"
             value={exchangeRate}
             onChange={(event) => setExchangeRate(event.target.value)}
-            disabled={currency === "USD"}
+            readOnly={currency === "USD"}
             required
           />
         </Field>
@@ -170,6 +188,7 @@ export function RepairForm({
           <Field key={component.key} label={component.label} error={fieldErrors[component.key]}>
             <MoneyInput
               name={component.key}
+              valueCents={components[component.key] ?? 0}
               onChangeCents={(cents) => handleComponentChange(component.key, cents)}
             />
           </Field>
@@ -198,19 +217,19 @@ export function RepairForm({
         description="Describe el servicio realizado y deja las referencias operativas que ayudan a ubicarlo después."
       >
         <Field label="Descripción del trabajo" required error={fieldErrors.description} className="md:col-span-2">
-          <Textarea name="description" rows={4} required />
+          <Textarea name="description" rows={4} defaultValue={valueAsString(formValues.description)} required />
         </Field>
 
         <Field label="Referencia" error={fieldErrors.referenceNumber}>
-          <Input name="referenceNumber" />
+          <Input name="referenceNumber" defaultValue={valueAsString(formValues.referenceNumber)} />
         </Field>
 
         <Field label="Orden de trabajo" error={fieldErrors.workOrderNumber}>
-          <Input name="workOrderNumber" />
+          <Input name="workOrderNumber" defaultValue={valueAsString(formValues.workOrderNumber)} />
         </Field>
 
         <Field label="Notas" error={fieldErrors.notes} className="md:col-span-2">
-          <Textarea name="notes" rows={3} />
+          <Textarea name="notes" rows={3} defaultValue={valueAsString(formValues.notes)} />
         </Field>
       </FormSection>
 

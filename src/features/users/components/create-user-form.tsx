@@ -47,6 +47,7 @@ export function UserFormDialog({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+  const [values, setValues] = useState({ name: user?.name ?? "", email: user?.email ?? "" })
   const [selectedRole, setSelectedRole] = useState<Role>(user?.role ?? "capturista")
   const isEdit = Boolean(user)
   const editingUser = user ?? null
@@ -64,6 +65,10 @@ export function UserFormDialog({
         email: formData.get("email"),
         role: formData.get("role"),
       }
+      setValues({
+        name: String(payload.name ?? ""),
+        email: String(payload.email ?? ""),
+      })
 
       const result: ActionResult<UserDTO> = isEdit
         ? await updateUserAction({ userId: editingUser!.id, ...payload })
@@ -86,6 +91,7 @@ export function UserFormDialog({
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
       setSelectedRole(user?.role ?? "capturista")
+      setValues({ name: user?.name ?? "", email: user?.email ?? "" })
       setError(null)
       setFieldErrors({})
     }
@@ -131,7 +137,8 @@ export function UserFormDialog({
                 <Input
                   id="user-name"
                   name="name"
-                  defaultValue={user?.name ?? ""}
+                  value={values.name}
+                  onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
                   required
                   aria-invalid={Boolean(fieldErrors.name?.length)}
                 />
@@ -148,7 +155,8 @@ export function UserFormDialog({
                   id="user-email"
                   name="email"
                   type="email"
-                  defaultValue={user?.email ?? ""}
+                  value={values.email}
+                  onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))}
                   required
                   aria-invalid={Boolean(fieldErrors.email?.length)}
                 />

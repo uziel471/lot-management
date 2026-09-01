@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { SALE_VOID_ROLES, SALE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValues } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { Vehicle } from "@/lib/db/models/vehicle"
 import { Sale } from "@/lib/db/models/sale"
@@ -173,7 +174,9 @@ export async function saveSaleAction(
   _previousState: ActionResult<SaleDetailDTO> | null,
   formData: FormData,
 ): Promise<ActionResult<SaleDetailDTO>> {
-  return createSale(Object.fromEntries(formData.entries()))
+  const input = formDataToValues(formData)
+  const result = await createSale(input)
+  return result.ok ? result : { ...result, values: input }
 }
 
 export async function voidSaleAction(

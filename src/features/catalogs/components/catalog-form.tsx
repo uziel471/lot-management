@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
+import { valueAsString } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { saveCatalogEntryAction } from "../actions"
 import type { CatalogFieldDef, CatalogMeta } from "../registry"
@@ -72,6 +73,7 @@ export function CatalogForm({
   )
 
   const fieldErrors = state && !state.ok ? (state.fieldErrors ?? {}) : {}
+  const formValues = state && !state.ok ? (state.values ?? {}) : {}
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -119,6 +121,7 @@ export function CatalogForm({
                 key={field.name}
                 field={field}
                 entry={entry}
+                values={formValues}
                 makeOptions={makeOptions}
                 errors={fieldErrors[field.name]}
                 disabled={formBlocked}
@@ -154,6 +157,7 @@ export function CatalogForm({
 function CatalogFormField({
   field,
   entry,
+  values,
   makeOptions,
   errors,
   disabled,
@@ -161,6 +165,7 @@ function CatalogFormField({
 }: {
   field: CatalogFieldDef
   entry?: CatalogEntryDTO
+  values?: Record<string, unknown>
   makeOptions: CatalogOption[]
   errors?: string[]
   disabled?: boolean
@@ -168,7 +173,9 @@ function CatalogFormField({
 }) {
   const raw = entry ? (entry as unknown as Record<string, unknown>)[field.name] : undefined
   const defaultValue =
-    currentMakeUnavailable && field.type === "make"
+    values && field.name in values
+      ? valueAsString(values[field.name])
+      : currentMakeUnavailable && field.type === "make"
       ? ""
       : raw === null || raw === undefined
         ? ""

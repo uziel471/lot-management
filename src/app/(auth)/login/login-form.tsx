@@ -8,6 +8,7 @@ const initialState: LoginState = undefined
 
 export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(signInAction, initialState)
+  const email = state?.email ?? ""
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -22,6 +23,7 @@ export function LoginForm({ next }: { next?: string }) {
           name="email"
           type="email"
           autoComplete="username"
+          defaultValue={email}
           required
           className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />

@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { REPAIR_VOID_ROLES, REPAIR_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValues, normalizeUsdExchangeRate } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { Repair } from "@/lib/db/models/repair"
 import { Vehicle } from "@/lib/db/models/vehicle"
@@ -423,11 +424,9 @@ export async function saveRepairAction(
   _previousState: SaveRepairResult | null,
   formData: FormData,
 ): Promise<SaveRepairResult> {
-  const input: Record<string, unknown> = {}
-  for (const [key, value] of formData.entries()) {
-    input[key] = value
-  }
-  return createRepair(input as RepairInput)
+  const input = normalizeUsdExchangeRate(formDataToValues(formData))
+  const result = await createRepair(input as RepairInput)
+  return result.ok ? result : { ...result, values: input }
 }
 
 export async function changeRepairStatusAction(

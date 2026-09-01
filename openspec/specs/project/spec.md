@@ -73,12 +73,12 @@ Todo importe SHALL registrarse en una sola moneda, `USD` o `MXN`, acompañado de
 
 ### Requirement: Resultado explícito de las operaciones de escritura
 
-Toda operación de escritura SHALL devolver un resultado explícito que indique éxito o error. Un error de validación SHALL identificar los campos afectados con un mensaje comprensible para el usuario. El sistema MUST NOT enviar al navegador trazas de excepción, mensajes del motor de base de datos ni ningún otro detalle interno.
+Toda operación de escritura SHALL devolver un resultado explícito que indique éxito o error. Un error de validación SHALL identificar los campos afectados con un mensaje comprensible para el usuario. Cuando el error provenga de un formulario recuperable, el resultado SHALL incluir los valores enviados necesarios para que la interfaz preserve la captura del usuario. El sistema MUST NOT enviar al navegador trazas de excepción, mensajes del motor de base de datos ni ningún otro detalle interno.
 
 #### Scenario: Error de validación
 
 - **WHEN** una operación de escritura recibe datos que no cumplen su esquema
-- **THEN** devuelve un error que señala qué campos fallaron y por qué, y no escribe nada
+- **THEN** devuelve un error que señala qué campos fallaron y por qué, conserva los valores enviados del formulario recuperable, y no escribe nada
 
 #### Scenario: Falla inesperada del servidor
 
@@ -89,6 +89,21 @@ Toda operación de escritura SHALL devolver un resultado explícito que indique 
 
 - **WHEN** una operación de escritura se completa
 - **THEN** devuelve un resultado de éxito con los datos que la vista necesita, y la vista afectada refleja el cambio sin recargar la página manualmente
+
+#### Scenario: Formulario preserva captura tras error
+
+- **WHEN** un usuario envía un formulario de escritura y la operación devuelve un error recuperable
+- **THEN** la interfaz mantiene visibles los textos, fechas, selects, checkboxes, moneda, tipo de cambio, importes y filas dinámicas que el usuario había capturado antes del envío
+
+#### Scenario: Defaults de negocio después de error
+
+- **WHEN** un formulario recuperable no recibe un valor capturado para un campo con default de negocio
+- **THEN** la interfaz restaura el default definido para ese formulario sin sobrescribir otros valores que el usuario sí envió
+
+#### Scenario: Campo deshabilitado requerido
+
+- **WHEN** un formulario muestra un campo requerido como no editable por una regla de negocio
+- **THEN** el valor canónico requerido viaja en el envío y se conserva tras errores recuperables
 
 ### Requirement: Trazabilidad de las escrituras
 

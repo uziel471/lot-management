@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { PURCHASE_VOID_ROLES, PURCHASE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValues, normalizeUsdExchangeRate } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { Purchase } from "@/lib/db/models/purchase"
 import { Vehicle } from "@/lib/db/models/vehicle"
@@ -294,11 +295,9 @@ export async function savePurchaseAction(
   _previousState: SavePurchaseResult | null,
   formData: FormData,
 ): Promise<SavePurchaseResult> {
-  const input: Record<string, unknown> = {}
-  for (const [key, value] of formData.entries()) {
-    input[key] = value
-  }
-  return createPurchase(input as PurchaseInput)
+  const input = normalizeUsdExchangeRate(formDataToValues(formData))
+  const result = await createPurchase(input as PurchaseInput)
+  return result.ok ? result : { ...result, values: input }
 }
 
 /** Envoltura de `voidPurchase` para el formulario de detalle. */

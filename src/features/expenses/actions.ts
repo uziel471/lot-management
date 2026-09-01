@@ -7,6 +7,7 @@ import { nextCode } from "@/lib/db/counters"
 import { requireRole } from "@/lib/auth/dal"
 import { EXPENSE_VOID_ROLES, EXPENSE_WRITE_ROLES } from "@/lib/auth/permissions"
 import { fail, failFromUnknownError, failFromZodError, ok } from "@/lib/result"
+import { formDataToValues, normalizeUsdExchangeRate } from "@/lib/form-values"
 import type { ActionResult } from "@/types/action-result"
 import { Expense } from "@/lib/db/models/expense"
 import { Vehicle } from "@/lib/db/models/vehicle"
@@ -219,11 +220,9 @@ export async function saveExpenseAction(
   _previousState: SaveExpenseResult | null,
   formData: FormData,
 ): Promise<SaveExpenseResult> {
-  const input: Record<string, unknown> = {}
-  for (const [key, value] of formData.entries()) {
-    input[key] = value
-  }
-  return createExpense(input as ExpenseInput)
+  const input = normalizeUsdExchangeRate(formDataToValues(formData))
+  const result = await createExpense(input as ExpenseInput)
+  return result.ok ? result : { ...result, values: input }
 }
 
 export async function voidExpenseAction(
